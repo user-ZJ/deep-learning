@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
+import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.Gravity;
@@ -21,9 +22,23 @@ import java.util.TimerTask;
 public class MyService extends Service {
     final static String TAG="jack";
     private MyView mv;
+    private Handler handler=null;
     private Timer timer;
-    private TimerTask task;
+    private TimerTask task = new TimerTask() {
+        @Override
+        public void run() {
+            handler.post(runnableUi);
+        }
+    };
 
+    Runnable   runnableUi=new  Runnable(){
+        @Override
+        public void run() {
+            //更新界面
+            mv.showDetect();
+        }
+
+    };
 
     public void onCreate() {
         super.onCreate();
@@ -36,15 +51,8 @@ public class MyService extends Service {
         Log.w(TAG, "MyService:" + this);
         mv = new MyView(MyService.this);
         timer = new Timer();
-        task = new TimerTask(){
-
-            @Override
-            public void run() {
-                //mv.showDetect();
-            }
-        };
         timer.schedule(task,0,1);
-
+        handler=new Handler();
         return START_STICKY;
     }
 
@@ -71,10 +79,10 @@ public class MyService extends Service {
             WindowManager mWindowManager = (WindowManager) getApplicationContext()
                     .getSystemService(Context.WINDOW_SERVICE);
             WindowManager.LayoutParams params = new WindowManager.LayoutParams();
-            params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
-            int flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+            params.type = WindowManager.LayoutParams.TYPE_PHONE;//WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
+            int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
             params.flags = flags;
-            params.format = PixelFormat.TRANSLUCENT;
+            params.format = PixelFormat.TRANSPARENT;
             params.width = WindowManager.LayoutParams.MATCH_PARENT;
             params.height = WindowManager.LayoutParams.MATCH_PARENT;
             params.gravity = Gravity.CENTER;
@@ -88,21 +96,19 @@ public class MyService extends Service {
             mpaint.setColor(Color.RED);
             mpaint.setStyle(Paint.Style.STROKE);
             mpaint.setStrokeWidth(2.0f);
-            canvas.drawRect(new RectF(100.0f,100.0f,300.0f,300.0f), mpaint);
+            canvas.drawRect(new RectF(800.0f,800.0f,900.0f,900.0f), mpaint);
         }
 
         public void showDetect(){
             invalidate();
-
         }
 
         public void removeDetect(){
             WindowManager mWindowManager = (WindowManager) getApplicationContext()
                     .getSystemService(Context.WINDOW_SERVICE);
             WindowManager.LayoutParams params = new WindowManager.LayoutParams();
-            params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
-            params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
-
+            //params.type = WindowManager.LayoutParams.TYPE_PHONE;//WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
+            //params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
             mWindowManager.removeViewImmediate(mView);
         }
     }
