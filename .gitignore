@@ -1,0 +1,5 @@
+
+VGG16/TensorFlow/cifar-10-batches-py/*
+VGG16/TensorFlow/cifar-10-python.tar.gz
+VGG16/TensorFlow/data/cifar-10-batches-bin/*
+VGG16/TensorFlow/cifar-10-binary.tar.gz
