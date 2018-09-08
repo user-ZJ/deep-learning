@@ -227,7 +227,7 @@ model.summary()
 最大池化
 ![](image/max-pooling.png)
 
-全局最大池化
+全局平均池化
 ![](image/global-average-pooling.png)
 
 ### keras中使用池化层
