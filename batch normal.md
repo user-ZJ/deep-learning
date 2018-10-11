@@ -25,3 +25,5 @@ BN统一了各层的方差，以适用一个统一的学习率，作用在激活
 
 
 https://arxiv.org/pdf/1502.03167.pdf
+
+参考：https://blog.csdn.net/u014114990/article/details/52290064
