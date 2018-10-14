@@ -30,7 +30,7 @@ public class speech extends Activity {
     //设置音频数据格式:PCM 16位每个样本，保证设备支持。PCM 8位每个样本，不一定能得到设备的支持。
     private static int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
     //AudioName裸音频数据文件
-    private static final String AudioName = "/sdcard/record.pcm";
+    private static final String AudioName = "/sdcard/record.raw";
     //NewAudioName可播放的音频文件
     private static final String NewAudioName = "/sdcard/record.wav";
 
