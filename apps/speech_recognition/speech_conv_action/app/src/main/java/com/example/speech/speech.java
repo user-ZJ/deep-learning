@@ -6,7 +6,9 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Build;
@@ -17,13 +19,19 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -34,6 +42,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.tensorflow.lite.Interpreter;
 
+import static java.lang.Thread.sleep;
+
 public class speech extends Activity {
 
     private static final String LOG_TAG = "SpeechRecognize";
@@ -43,6 +53,11 @@ public class speech extends Activity {
     // all these, but you should customize them to match your training settings if
     // you are running your own model.
     private static final int SAMPLE_RATE = 16000;
+    private static final int CHNNELCONFIG = AudioFormat.CHANNEL_IN_MONO;
+    private static int AUDIOFORMAT = AudioFormat.ENCODING_PCM_16BIT;
+    private static int AUDIOSOURCE = MediaRecorder.AudioSource.DEFAULT;
+    //AudioName裸音频数据文件
+    private static final String AudioName = "/sdcard/record.pcm";
     private static final int SAMPLE_DURATION_MS = 1000;
     private static final int RECORDING_LENGTH = (int) (SAMPLE_RATE * SAMPLE_DURATION_MS / 1000);
     private static final long AVERAGE_WINDOW_DURATION_MS = 500;
@@ -52,6 +67,9 @@ public class speech extends Activity {
     private static final long MINIMUM_TIME_BETWEEN_SAMPLES_MS = 30;
     private static final String LABEL_FILENAME = "file:///android_asset/conv_actions_labels.txt";
     private static final String MODEL_FILENAME = "file:///android_asset/conv_actions_frozen.mp3";
+
+    private MediaPlayer mediaPlayer= new MediaPlayer();
+    private File file;
 
     // UI elements.
     private static final int REQUEST_RECORD_AUDIO = 13;
@@ -199,7 +217,7 @@ public class speech extends Activity {
         // Estimate the buffer size we'll need for this device.
         int bufferSize =
                 AudioRecord.getMinBufferSize(
-                        SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                        SAMPLE_RATE, CHNNELCONFIG, AUDIOFORMAT);
         if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
             bufferSize = SAMPLE_RATE * 2;
         }
@@ -207,10 +225,10 @@ public class speech extends Activity {
 
         AudioRecord record =
                 new AudioRecord(
-                        MediaRecorder.AudioSource.DEFAULT,
+                        AUDIOSOURCE,
                         SAMPLE_RATE,
-                        AudioFormat.CHANNEL_IN_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT,
+                        CHNNELCONFIG,
+                        AUDIOFORMAT,
                         bufferSize);
 
         if (record.getState() != AudioRecord.STATE_INITIALIZED) {
@@ -237,6 +255,10 @@ public class speech extends Activity {
                 System.arraycopy(audioBuffer, 0, recordingBuffer, recordingOffset, firstCopyLength);
                 System.arraycopy(audioBuffer, firstCopyLength, recordingBuffer, 0, secondCopyLength);
                 recordingOffset = newRecordingOffset % maxLength;
+//                if(newRecordingOffset == 16000 ) {
+//                    writeDataToFile(recordingBuffer);
+//                    playMusic();
+//                }
             } finally {
                 recordingBufferLock.unlock();
             }
@@ -244,6 +266,57 @@ public class speech extends Activity {
 
         record.stop();
         record.release();
+    }
+
+    private void playMusic() {
+        Log.d(LOG_TAG,"play music");
+        if(file == null){
+            return;
+        }
+        //读取文件
+        int musicLength = (int) (file.length() / 2);
+        short[] music = new short[musicLength];
+        try {
+            InputStream is = new FileInputStream(file);
+            BufferedInputStream bis = new BufferedInputStream(is);
+            DataInputStream dis = new DataInputStream(bis);
+            int i = 0;
+            while (dis.available() > 0) {
+                music[i] = dis.readShort();
+                i++;
+            }
+            dis.close();
+            AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                    16000, AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    musicLength * 2,
+                    AudioTrack.MODE_STREAM);
+            audioTrack.play();
+            audioTrack.write(music, 0, musicLength);
+            audioTrack.stop();
+        } catch (Throwable t) {
+            Log.e(LOG_TAG, "播放失败");
+        }
+    }
+
+    private void writeDataToFile(short[] audioBuffer) {
+        file = new File(AudioName);
+        Log.i(LOG_TAG,"save file");
+        if (file.exists())
+            file.delete();
+        try {
+            file.createNewFile();
+            OutputStream os = new FileOutputStream(file);
+            BufferedOutputStream bos = new BufferedOutputStream(os);
+            DataOutputStream dos = new DataOutputStream(bos);
+            for (int i = 0; i < audioBuffer.length; i++) {
+                dos.writeShort(audioBuffer[i]);
+            }
+            dos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public synchronized void startRecognition() {
@@ -290,6 +363,8 @@ public class speech extends Activity {
                 int secondCopyLength = recordingOffset;
                 System.arraycopy(recordingBuffer, recordingOffset, inputBuffer, 0, firstCopyLength);
                 System.arraycopy(recordingBuffer, 0, inputBuffer, firstCopyLength, secondCopyLength);
+//                writeDataToFile(inputBuffer);
+//                playMusic();
             } finally {
                 recordingBufferLock.unlock();
             }
@@ -342,7 +417,7 @@ public class speech extends Activity {
                     });
             try {
                 // We don't need to run too frequently, so snooze for a bit.
-                Thread.sleep(MINIMUM_TIME_BETWEEN_SAMPLES_MS);
+                sleep(MINIMUM_TIME_BETWEEN_SAMPLES_MS);
             } catch (InterruptedException e) {
                 // Ignore
             }
