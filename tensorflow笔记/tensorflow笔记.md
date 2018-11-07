@@ -205,6 +205,9 @@ class tf.train.RMSPropOptimizer
 
 ### 模型的存储与加载  
 
+save-restore-model.py  
+model-convert.py
+
 **tensorflow模型文件**
 checkpoint：该文件是个文本文件，里面记录了保存的最新的checkpoint文件以及其它checkpoint文件列表。在inference时，可以通过修改这个文件，指定使用哪个model  
 model.ckpt.meta：保存的是图结构，meta文件是pb（protocol buffer）格式文件，包含变量、op、集合等  
@@ -303,6 +306,9 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 			print(ckpt.model_checkpoint_path)
 			saver = tf.train.import_meta_graph('model/model.ckpt-10.meta')		
 			saver.restore(sess, 'model/model.ckpt-10') #加载指定模型
+			#从checkpoint文件中加载指定的模型
+			saver = tf.train.import_meta_graph(input_checkpoint + '.meta',
+                                       clear_devices=True)
 			saver.restore(sess, ckpt.model_checkpoint_path) #加载checkpoint中记录的模型
 
 #### 使用pbtxt或pb文件
