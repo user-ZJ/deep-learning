@@ -1,0 +1,401 @@
+# tensorflow
+
+## TensorFlow基础知识
+TensorFlow 的设计理念主要体现在以下两个方面：  
+1. 将图的定义和图的运行完全分开。因此，TensorFlow 被认为是一个“符号主义”的库  
+   符号式计算一般是先定义各种变量，然后建立一个数据流图，在数据流图中规定各个变量之间的计算关系，最后需要对数据流图进行编译，但此时的数据流图还是一个空壳儿，里面没有任何实际数据，只有把需要运算的输入放进去后，才能在整个模型中形成数据流，从而形成输出值。  
+2. TensorFlow 中涉及的运算都要放在图中，而图的运行只发生在会话（session）中。开启会话后，就可以用数据去填充节点，进行运算；关闭会话后，就不能进行计算了。因此，会话提供了操作运行和 Tensor 求值的环境。   
+
+### 数据流图中的各个要素：  
+图中包含输入（input）、塑形（reshape）、Relu 层（Relu layer）、Logit 层（Logit layer）、Softmax、交叉熵（cross entropy）、梯度（gradient）、SGD 训练（SGD Trainer）等  
+TensorFlow 的数据流图是由节点（node）和边（edge）组成的有向无环图（directed acycline graph，DAG）  
+还有一种特殊边，一般画为虚线边，称为**控制依赖**（control dependency），可以用于控制操作的运行，这被用来确保 happens-before 关系，这类边上没有数据流过，但源节点必须在目的节点开始执行前完成执行。常用代码如下：  
+tf.Graph.control_dependencies(control_inputs)
+
+### 数据类型： 
+https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/framework/dtypes.py  
+
+### 节点:  
+图中的节点又称为算子，它代表一个操作（operation，OP），一般用来表示施加的数学运算，也可以表示数据输入（feed in）的起点以及输出（push out）的终点，或者是读取/写入持久变量（persistent variable）的终点。 
+ 
+https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/math_ops.py  
+数学运算操作	Add、Subtract、Multiply、Div、Exp、Log、Greater、Less、Equal  
+数组运算操作	Concat、Slice、Split、Constant、Rank、Shape、Shuffle  
+矩阵运算操作	MatMul、MatrixInverse、MatrixDeterminant  
+有状态的操作	Variable、Assign、AssignAdd  
+神经网络构建操作	SoftMax、Sigmoid、ReLU、Convolution2D、MaxPool  
+检查点操作	Save、Restore  
+队列和同步操作	Enqueue、Dequeue、MutexAcquire、MutexRelease  
+控制张量流动的操作	Merge、Switch、Enter、Leave、NextIteration  
+
+### 其他概念
+1. 图：把操作任务描述成有向无环图  
+2. 会话：  
+会话（session）提供在图中执行操作的一些方法。一般的模式是，建立会话，此时会生成一张空图，在会话中添加节点和边，形成一张图，然后执行。在调用 Session 对象的 run()方法来执行图时，传入一些 Tensor，这个过程叫填充（feed）；返回的结果类型根据输入的类型而定，这个过程叫取回（fetch）  
+会话是图交互的一个桥梁，一个会话可以有多个图，会话可以修改图的结构，也可以往图中注入数据进行计算。因此，会话主要有两个 API 接口：Extend 和 Run。Extend 操作是在 Graph 中添加节点和边，Run 操作是输入计算的节点和填充必要的数据后，进行运算，并输出运算结果。  
+3. 设备：  
+设备（device）是指一块可以用来运算并且拥有自己的地址空间的硬件，如 GPU 和 CPU。TensorFlow 为了实现分布式执行操作，充分利用计算资源，可以明确指定操作在哪个设备上执行  
+如：with tf.device("/gpu:1")  
+4. 变量： 
+变量（variable）是一种特殊的数据，它在图中有固定的位置，不像普通张量那样可以流动。使用 tf.Variable()构造函数，这个构造函数需要一个初始值，初始值的形状和类型决定了这个变量的形状和类型  
+5. 常量：  
+input1 = tf.constant(3.0)  
+6. placeholder  
+TensorFlow 还提供了填充机制，可以在构建图时使用 tf.placeholder()临时替代任意操作的张量，在调用 Session 对象的 run()方法去执行图时，使用填充数据作为调用的参数，调用结束后，填充数据就消失。 
+`input1 = tf.placeholder(tf.float32)
+input2 = tf.placeholder(tf.float32)
+output = tf.multiply(input1, input2)
+with tf.Session() as sess:
+  print sess.run([output], feed_dict={input1:[7.], input2:[2.]})
+输出 [array([ 14.], dtype=float32)]`   
+7. 内核：  
+我们知道操作（operation）是对抽象操作（如 matmul 或者 add）的一个统称，而内核（kernel）则是能够运行在特定设备（如 CPU、GPU）上的一种对操作的实现。因此，同一个操作可能会对应多个内核。  
+当自定义一个操作时，需要把新操作和内核通过注册的方式添加到系统中。  
+
+### 常用 API  
+1. 图、操作和张量：  
+	tf.Graph 类中包含一系列表示计算的操作对象  
+	tf.Graph.init()	创建一个空图  
+	tf.Graph.as_default()	将某图设置为默认图，并返回一个上下文管理器。如果不显式添加一个默认图，系统会自动设置一个全局的默认图。所设置的默认图，在模块范围内定义的节点都将默认加入默认图中  
+	tf.Graph.device(device_name_or_function)	定义运行图所使用的设备，并返回一个上下文管理器  
+	tf.Graph.name_scope(name)	为节点创建层次化的名称，并返回一个上下文管理器  
+ 
+	tf.Operation 类代表图中的一个节点，用于计算张量数据，该类型由节点构造器（如 tf.matmul()或者 Graph.create_op()）产生  
+	tf.Operation.name	操作的名称  
+	tf.Operation.type	操作的类型，如MatMul  
+	tf.Operation.inputstf.Operation.outputs	操作的输入与输出  
+	tf.Operation.control_inputs	操作的依赖  
+	tf.Operation.run(feed_dict=None, session=None)	在会话中运行该操作  
+	tf.Operation.get_attr(name)	获取操作的属性值   
+ 
+	tf.Tensor 类是操作输出的符号句柄，它不包含操作输出的值，而是提供了一种在 tf.Session 中计算这些值的方法。这样就可以在操作之间构建一个数据流连接，使 TensorFlow 能够执行一个表示大量多步计算的图形。  
+	tf.Tensor.dtype	张量的数据类型  
+	tf.Tensor.name	张量的名称  
+	tf.Tensor.value_index	张量在操作输出中的索引  
+	tf.Tensor.graph	张量所在的图  
+	tf.Tensor.op	产生该张量的操作  
+	tf.Tensor.consumers()	返回使用该张量的操作列表  
+	tf.Tensor.eval(feed_dict=None, session=None)	**在会话中求张量的值**，需要使用sess.as_default()或者eval(session=sess)  
+	tf.Tensor.get_shape()	返回用于表示张量的形状（维度）的类TensorShape  
+	tf.Tensor.set_shape(shape)	更新张量的形状  
+	tf.Tensor.device	设置计算该张量的设备  
+
+2. 可视化  
+	可视化时，需要在程序中给必要的节点添加摘要（summary），摘要会收集该节点的数据，并标记上第几步、时间戳等标识，写入事件文件（event file）中。tf.summary.FileWriter 类用于在目录中创建事件文件，并且向文件中添加摘要和事件，用来在 TensorBoard 中展示。    
+	tf.summary.FileWriter.init(logdir, graph=None, max_queue= 10, flush_secs=120, graph_def=None)	创建 FileWriter 和事件文件，会在 logdir 中创建一个新的事件文件  
+	tf.summary.FileWriter.add_summary(summary, global_step=None)	将摘要添加到事件文件  
+	tf.summary.FileWriter.add_event(event)	向事件文件中添加一个事件  
+	tf.summary.FileWriter.add_graph(graph, global_step=None, graph_def=None)	向事件文件中添加一个图  
+	tf.summary.FileWriter.get_logdir()	获取事件文件的路径  
+	tf.summary.FileWriter.flush()	将所有事件都写入磁盘  
+	tf.summary.FileWriter.close()	将事件写入磁盘，并关闭文件操作符  
+	tf.summary.scalar(name, tensor, collections=None)	输出包含单个标量值的摘要  
+	tf.summary.histogram(name, values, collections=None)	输出包含直方图的摘要  
+	tf.summary.audio(name, tensor, sample_rate, max_outputs=3, collections=None)	输出包含音频的摘要  
+	tf.summary.image(name, tensor, max_outputs=3, collections= None)	输出包含图片的摘要  
+	tf.summary.merge(inputs, collections=None, name=None)	合并摘要，包含所有输入摘要的值  
+
+### 变量作用域
+在 TensorFlow 中有两个作用域（scope），一个是 name_scope，另一个是 variable_scope。variable_scope 主要是给 variable_name 加前缀，也可以给 op_name 加前缀；name_scope 是给 op_name 加前缀。  
+
+#### variable_scope
+variable_scope 变量作用域机制在 TensorFlow 中主要由两部分组成：  
+v = tf.get_variable(name, shape, dtype, initializer) # 通过所给的名字创建或是返回一个变量  
+tf.variable_scope(<scope_name>) # 为变量指定命名空间  
+
+1. 获取变量作用域  
+	可以直接通过 tf.variable_scope()来获取变量作用域：    
+	    with tf.variable_scope("foo") as foo_scope:
+    	v = tf.get_variable("v", [1])
+    	with tf.variable_scope(foo_scope)
+    	w = tf.get_variable("w", [1])
+	如果在开启的一个变量作用域里使用之前预先定义的一个作用域，则会跳过当前变量的作用域，保持预先存在的作用域不变。  
+	    with tf.variable_scope("foo") as foo_scope:
+    	    assert foo_scope.name == "foo"
+    	with tf.variable_scope("bar")
+    	    with tf.variable_scope("baz") as other_scope:
+    	       assert other_scope.name == "bar/baz"
+    	       with tf.variable_scope(foo_scope) as foo_scope2:
+    	           assert foo_scope2.name == "foo"  # 保持不变
+
+2．变量作用域的初始化
+变量作用域可以默认携带一个初始化器，在这个作用域中的子作用域或变量都可以继承或者重写父作用域初始化器中的值。  
+
+    with tf.variable_scope("foo", initializer=tf.constant_initializer(0.4)):
+    	v = tf.get_variable("v", [1])
+    	assert v.eval() == 0.4  # 被作用域初始化
+    	w = tf.get_variable("w", [1], initializer=tf.constant_initializer(0.3)):
+    	assert w.eval() == 0.3  # 重写初始化器的值
+    	with tf.variable_scope("bar"):
+    		v = tf.get_variable("v", [1])
+    		assert v.eval() == 0.4  # 继承默认的初始化器
+    	with tf.variable_scope("baz", initializer=tf.constant_initializer(0.2)):
+    		v = tf.get_variable("v", [1])
+    		assert v.eval() == 0.2  # 重写父作用域的初始化器的值
+
+对于 opname,在 variable_scope 作用域下的操作，也会被加上前缀：  
+
+    with tf.variable_scope("foo"):
+    	x = 1.0 + tf.get_variable("v", [1])
+    assert x.op.name == "foo/add" 
+  
+variable_scope 主要用在循环神经网络（RNN）的操作中，其中需要大量的共享变量。  
+
+#### name_scope
+TensorFlow 中常常会有数以千计的节点，在可视化的过程中很难一下子展示出来，因此用 name_scope 为变量划分范围，在可视化中，这表示在计算图中的一个层级。name_scope 会影响 op_name，不会影响用 get_variable()创建的变量，而会影响通过 Variable()创建的变量  
+
+    with tf.variable_scope("foo"):
+    	with tf.name_scope("bar"):
+    		v = tf.get_variable("v", [1])
+    		b = tf.Variable(tf.zeros([1]), name='b')
+    		x = 1.0 + v
+    assert v.name == "foo/v:0"
+    assert b.name == "foo/bar/b:0"
+    assert x.op.name == "foo/bar/add"
+
+### 批标准化
+https://github.com/user-ZJ/deep-learning/blob/master/batch%20normal.md  
+
+### 神经元函数及优化方法
+1. 激活函数和dropout  
+tf.nn.relu()  
+tf.nn.sigmoid()  
+tf.nn.tanh()  
+tf.nn.elu()  
+tf.nn.bias_add()  
+tf.nn.crelu()  
+tf.nn.relu6()  
+tf.nn.softplus()  
+tf.nn.softsign()  
+tf.nn.dropout()  
+2. 卷积函数  
+tf.nn.convolution 计算 N 维卷积的和  
+tf.nn.conv2d  对一个四维的输入数据input和四维的卷积核filter进行操作，然后对输入数据进行一个二维的卷积操作，最后得到卷积之后的结果  
+tf.nn.depthwise_conv2d  
+tf.nn.separable_conv2d  利用几个分离的卷积核去做卷积，应用一个二维的卷积核，在每个通道上，以深度 channel_multiplier 进行卷积  
+tf.nn.atrous_conv2d  计算 Atrous 卷积，又称孔卷积或者扩张卷积。  
+tf.nn.conv2d_transpose  解卷积网络（deconvolutional network）中有时称为“反卷积”，但实际上是 conv2d 的转置，而不是实际的反卷积。  
+tf.nn.conv1d  输入是三维，卷积核的维度也是三维，少了一维filter_height  
+tf.nn.conv3d  函数用来计算给定五维的输入和过滤器的情况下的三维卷积  
+tf.nn.conv3d_transpose  
+3. 池化函数  
+tf.nn.avg_pool  
+tf.nn.max_pool  
+tf.nn.max_pool_with_argmax  这个函数的作用是计算池化区域中元素的最大值和该最大值所在的位置，计算位置 argmax 的时候，我们将 input 铺平了进行计算，所以，如果 input = [b, y, x, c]，那么索引位置是(( b * height + y) * width + x) * channels + c；该函数只能在 GPU 下运行，在 CPU 下没有对应的函数实现；返回结果是一个张量组成的元组（output, argmax）  
+tf.nn.avg_pool3d  池化后的图片大小可以成非整数倍数缩小  
+tf.nn.max_pool3d  池化后的图片大小可以成非整数倍数缩小  
+tf.nn.fractional_avg_pool  在三维下的平均池化  
+tf.nn.fractional_max_pool  在三维下的最大池化  
+tf.nn.pool  ？？？  
+4. 分类函数  
+tf.nn.sigmoid_cross_entropy_with_logits  如果采用此函数作为损失函数，在神经网络的最后一层不需要进行 sigmoid 运算。    
+tf.nn.softmax  Softmax激活  softmax = exp(logits) / reduce_sum(exp(logits), dim)。  
+tf.nn.log_softmax  计算 log softmax 激活，也就是 logsoftmax = logits - log(reduce_sum(exp(logits), dim))。  
+tf.nn.softmax_cross_entropy_with_logits  计算交叉熵，label需要是onehot之后形式  
+tf.nn.sparse_softmax_cross_entropy_with_logits  计算交叉熵，label需要是onehot之前形式  
+5. 优化方法  
+class tf.train.GradientDescentOptimizer  
+class tf.train.AdadeltaOptimizer  
+class tf.train.AdagradOptimizer  
+class tf.train.AdagradDAOptimizer  
+class tf.train.MomentumOptimizer  
+class tf.train.AdamOptimizer  
+class tf.train.FtrlOptimizer  
+class tf.train.RMSPropOptimizer  
+
+### 模型的存储与加载  
+
+**tensorflow模型文件**
+checkpoint：该文件是个文本文件，里面记录了保存的最新的checkpoint文件以及其它checkpoint文件列表。在inference时，可以通过修改这个文件，指定使用哪个model  
+model.ckpt.meta：保存的是图结构，meta文件是pb（protocol buffer）格式文件，包含变量、op、集合等  
+model.ckpt.index：string-string不可变表，每个键都是张量的名称，其值是序列化的BundleEntryProto。每个BundleEntryProto描述一个张量的metadata：张量的数据包含在哪个文件，该文件的offset，checksum和一些辅助数据等。  
+model.ckpt.data-00000-of-00001：它是TensorBundle集合，保存所有变量的值。  
+
+#### 保存为ckpt文件
+模型存储主要是建立一个 tf.train.Saver()来保存变量，并且指定保存的位置，一般模型的扩展名为.ckpt。  
+saver = tf.train.Saver() #在声明完所有变量后，调用 tf.train.Saver  
+non_storable_variable = tf.Variable(777)  # 位于 tf.train.Saver 之后的变量将不会被存储  
+saver.save(sess, ckpt_dir + "/model.ckpt", global_step=global_step) # 存储模型  
+保存步骤为：  
+1. 定义运算过程  
+2. 声明并得到一个 Saver  
+3. 通过 Saver.save 保存模型  
+
+#### 保存pbtxt或pb文件
+协议缓冲区（Protocol Buffer/简写 Protobufs）是 TF 有效存储和传输数据的常用方式，可以把它当成一个更快的 JSON 格式，当你在存储/传输时需要节省空间/带宽，你可以压缩它。简而言之，可以使用 Protobufs 作为：  
+* 一种未压缩的、人性化的文本格式，扩展名为 .pbtxt  
+* 一种压缩的、机器友好的二进制格式，扩展名为 .pb 或根本没有扩展名  
+
+保存步骤为：  
+1. 定义运算过程
+2. 通过 get_default_graph().as_graph_def() 得到当前图的计算节点信息
+3. 通过 graph_util.convert_variables_to_constants 将相关节点的values固定
+4. 通过 tf.gfile.GFile 进行模型持久化
+
+tf.train.write_graph(sess.graph_def, '/tmp/tfmodel', 'train.pbtxt')
+
+保存图表并保存变量参数:
+  
+    方式1：
+    from tensorflow.python.framework import graph_util
+    var_list=tf.global_variables()
+    constant_graph = graph_util.convert_variables_to_constants(sess,sess.graph_def,output_node_names=[var_list[i].name for i in range(len(var_list))]) #将相关节点的value固定，包括output_node_names计算需要的所有节点  
+    tf.train.write_graph(constant_graph, './output', 'expert-graph.pbtxt', as_text=False) #不会进行压缩    
+	方式2：
+    from tensorflow.python.framework import graph_util
+    var_list=tf.global_variables()
+    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=[var_list[i].name for i in range(len(var_list))])
+    with tf.gfile.FastGFile(logdir+'expert-graph.pb', mode='wb') as f:
+    	f.write(constant_graph.SerializeToString())  #序列化输出，压缩后的Protobufs文件
+
+只保留图表：
+
+    方式1：
+	graph_def = tf.get_default_graph().as_graph_def()
+    with gfile.GFile('./output/export.pb', 'wb') as f:
+    	f.write(graph_def.SerializeToString())
+    方式2：
+    tf.train.write_graph(graph_def, './output', 'expert-graph.pb', as_text=False)
+
+free_graph.py制作：  
+tensorflow/python/tools/free_graph.py  
+先加载模型文件，再从checkpoint文件读取权重数据初始化到模型里的权重变量，再将权重变量转换成权重常量，然后再通过指定的输出节点将没用于输出推理的Op节点从图中剥离掉，再重新保存到指定的文件里。  
+例子：  
+python tensorflow/python/tools/free_graph.py \
+--input_graph=some_graph_def.pb \ 注意：这里的pb文件是用tf.train.write_graph方法保存的，格式为pbtxt文件，未经过压缩
+--input_checkpoint=model.ckpt.1001 \ 注意：这里若是r12以上的版本，只需给.data-00000....前面的文件名，如：model.ckpt.1001.data-00000-of-00001，只需写model.ckpt.1001  
+--output_graph=/tmp/frozen_graph.pb
+--output_node_names=softmax
+
+参数说明：
+input_graph：（必选）模型文件，可以是二进制的pb文件，或文本的meta文件，用input_binary来指定区分  
+input_saver：（可选）Saver解析器。保存模型和权限时，Saver也可以自身序列化保存，以便在加载时应用合适的版本。主要用于版本不兼容时使用。可以为空，为空时用当前版本的Saver  
+input_binary：（可选）配合input_graph用，为true时，input_graph为二进制，为false时，input_graph为文件。默认False  
+input_checkpoint：（必选）检查点数据文件。训练时，给Saver用于保存权重、偏置等变量值。这时用于模型恢复变量值。  
+output_node_names：（必选）输出节点的名字，有多个时用逗号分开。用于指定输出节点，将没有在输出线上的其它节点剔除。  
+restore_op_name：（可选）从模型恢复节点的名字。升级版中已弃用。默认：save/restore_all  
+filename_tensor_name：（可选）已弃用。默认：save/Const:0  
+output_graph：（必选）用来保存整合后的模型输出文件。  
+clear_devices：（可选），默认True。指定是否清除训练时节点指定的运算设备（如cpu、gpu、tpu。cpu是默认）  
+initializer_nodes：（可选）默认空。权限加载后，可通过此参数来指定需要初始化的节点，用逗号分隔多个节点名字。  
+variable_names_blacklist：（可先）默认空。变量黑名单，用于指定不用恢复值的变量，用逗号分隔多个变量名字。  
+
+如果模型文件是.meta格式的，也就是说用saver.Save方法和checkpoint一起生成的元模型文件，free_graph.py不适用，但可以改造下：  
+1、copy free_graph.py为free_graph_meta.py  
+2、修改free_graph.py，导入meta_graph：from tensorflow.python.framework import meta_graph  
+3、将91行到97行换成：input_graph_def = meta_graph.read_meta_graph_file(input_graph).graph_def   
+
+#### 使用ckpt文件
+方法1：在使用模型的时候，必须把模型的结构重新定义一遍，然后载入对应名字的变量的值。
+
+	saver = tf.train.Saver()
+	with tf.Session() as sess:  
+		ckpt = tf.train.get_checkpoint_state('./model/')
+        saver.restore(sess, 'model/model.ckpt-10') #加载指定模型
+		saver.restore(sess, ckpt.model_checkpoint_path) #加载checkpoint中记录的模型 
+
+方法2：不需重新定义网络结构  
+
+	saver = tf.train.Saver()	
+	with tf.Session() as sess:
+		ckpt = tf.train.get_checkpoint_state('./model/')
+		if ckpt and ckpt.model_checkpoint_path:
+			print(ckpt.model_checkpoint_path)
+			saver = tf.train.import_meta_graph('model/model.ckpt-10.meta')		
+			saver.restore(sess, 'model/model.ckpt-10') #加载指定模型
+			saver.restore(sess, ckpt.model_checkpoint_path) #加载checkpoint中记录的模型
+
+#### 使用pbtxt或pb文件
+
+	# 新建空白图
+	output_graph_def  = tf.Graph()
+	# 空白图列为默认图
+	with output_graph_def.as_default():
+    	# 二进制读取模型文件
+    	with tf.gfile.FastGFile(os.path.join(model_dir,model_name),'rb') as f:
+        	# 新建GraphDef文件，用于临时载入模型中的图
+        	graph_def = tf.GraphDef()
+        	# GraphDef加载模型中的图
+        	graph_def.ParseFromString(f.read())
+        	# 在空白图中加载GraphDef中的图
+        	tf.import_graph_def(graph_def,name='')
+        	# 在图中获取张量需要使用graph.get_tensor_by_name加张量名
+        	# 这里的张量可以直接用于session的run方法求值了
+        	# 补充一个基础知识，形如'conv1'是节点名称，而'conv1:0'是张量名称，表示节点的第一个输出张量
+        	input_tensor = self.graph.get_tensor_by_name(self.input_tensor_name)
+        	layer_tensors = [self.graph.get_tensor_by_name(name + ':0') for name in 	layer_operation_names]
+
+	#使用pbtxt
+	output_graph_def  = tf.Graph()
+	with open('tfmodel/train.pbtxt', 'r') as f:
+    	graph_str = f.read()
+	text_format.Parse(graph_str, output_graph_def)
+	tf.import_graph_def(output_graph_def)
+	
+
+#### 相互转换
+##### pb转pbtxt
+
+	def convert_pb_to_pbtxt(filename):
+		with gfile.FastGFile(filename,'rb') as f:
+    		graph_def = tf.GraphDef()
+    		graph_def.ParseFromString(f.read())
+    		tf.import_graph_def(graph_def, name='')
+    		tf.train.write_graph(graph_def, './', 'protobuf.pbtxt', as_text=True)
+
+##### pbtxt转pb
+
+	def convert_pbtxt_to_pb(filename):
+		"""Returns a `tf.GraphDef` proto representing the data in the given pbtxt file.
+		Args:
+    	filename: The name of a file containing a GraphDef pbtxt (text-formatted
+	      `tf.GraphDef` protocol buffer data)."""
+		with tf.gfile.FastGFile(filename, 'r') as f:
+    	graph_def = tf.GraphDef()
+    	file_content = f.read() 
+    	# Merges the human-readable string in `file_content` into `graph_def`.
+    	text_format.Merge(file_content, graph_def)
+    	tf.train.write_graph( graph_def , './' , 'protobuf.pb' , as_text = False )
+
+##### ckpt转pb
+
+	def freeze_graph(ckptmodel_folder):
+	    checkpoint = tf.train.get_checkpoint_state(ckptmodel_folder)  # 检查目录下ckpt文件状态是否可用
+	    input_checkpoint = checkpoint.model_checkpoint_path  # 得ckpt文件路径
+	    output_graph = 'model-convert/ckptmodel.pb'
+	    output_node_names = "prediction"  # 原模型输出操作节点的名字
+	    # 得到图、clear_devices ：Whether or not to clear the device field for an `Operation` or `Tensor` during import.
+	    saver = tf.train.import_meta_graph(input_checkpoint + '.meta',
+	                                       clear_devices=True)
+	    graph = tf.get_default_graph()  # 获得默认的图
+	    input_graph_def = graph.as_graph_def()  # 返回一个序列化的图代表当前的图
+	    with tf.Session() as sess:
+	        saver.restore(sess, input_checkpoint)  # 恢复图并得到数据
+	        # 测试读出来的模型是否正确，注意这里传入的是输出 和输入 节点的 tensor的名字，不是操作节点的名字
+	        #print("predictions : ", sess.run("prediction:0", feed_dict={"input_holder:0": [10.0]}))
+	        output_graph_def = tf.graph_util.convert_variables_to_constants(  # 模型持久化，将变量值固定
+	            sess,
+	            input_graph_def,
+	            output_node_names.split(",")  # 如果有多个输出节点，以逗号隔开
+	        )
+	        with tf.gfile.GFile(output_graph, "wb") as f:  # 保存模型
+	            f.write(output_graph_def.SerializeToString())  # 序列化输出
+        	print("%d ops in the final graph." % len(output_graph_def.node))  # 得到当前图有几个操作节点
+
+ 	      for op in graph.get_operations():
+            print(op.name, op.values())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
