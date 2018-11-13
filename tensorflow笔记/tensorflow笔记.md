@@ -391,6 +391,166 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
  	      for op in graph.get_operations():
             print(op.name, op.values())
 
+### 队列和线程
+
+#### 队列
+和 TensorFlow 中的其他组件一样，队列（queue）本身也是图中的一个节点，是一种有状态的节点，其他节点，如入队节点（enqueue）和出队节点（dequeue），可以修改它的内容。主要有两种队列：FIFOQueue 和 RandomShuffleQueue，源代码在tensorflow/tensorflow/python/ops/data_flow_ops.py中。  
+
+**FIFOQueue**  
+FIFOQueue 创建一个先入先出队列。在训练一些语音、文字样本时，使用循环神经网络的网络结构，希望读入的训练样本是有序的，就要用 FIFOQueue。   
+
+	import tensorflow as tf  
+
+	# 创建一个先入先出队列,初始化队列插入0.1、0.2、0.3三个数字 
+	q = tf.FIFOQueue(3, "float")  
+	init = q.enqueue_many(([0.1, 0.2, 0.3],))  
+	# 定义出队、+1、入队操作
+	x = q.dequeue()
+	y = x + 1  
+	q_inc = q.enqueue([y])  
+	with tf.Session() as sess:  
+		sess.run(init)  
+		quelen =  sess.run(q.size())  
+		for i in range(2):  
+			sess.run(q_inc) # 执行2次操作，队列中的值变为0.3,1.1,1.2
+
+		quelen =  sess.run(q.size())  
+		for i in range(quelen):  
+    		print (sess.run(q.dequeue())) # 输出队列的值  
+
+**RandomShuffleQueue**  
+RandomShuffleQueue 创建一个随机队列，在出队列时，是以随机的顺序产生元素的。在训练一些图像样本时，使用CNN的网络结构，希望可以无序地读入训练样本，就要用 RandomShuffleQueue，每次随机产生一个训练样本。  
+RandomShuffleQueue 在 TensorFlow 使用异步计算时非常重要。因为 TensorFlow 的会话是支持多线程的，我们可以在主线程里执行训练操作，使用 RandomShuffleQueue 作为训练输入，开多个线程来准备训练样本，将样本压入队列后，主线程会从队列中每次取出 mini-batch 的样本进行训练。  
+
+	import tensorflow as tf
+
+	# 创建一个随机队列，队列最大长度为10，出队后最小长度为2
+	q = tf.RandomShuffleQueue(capacity=10, min_after_dequeue=2, dtypes="float")
+	sess = tf.Session()
+	for i in range(0, 10): #10次入队
+		sess.run(q.enqueue(i))
+
+	for i in range(0, 8): # 8次出队
+		print(sess.run(q.dequeue()))  
+
+当：  
+队列长度等于最小值，执行出队操作；
+队列长度等于最大值，执行入队操作。
+程序会发生阻断，卡住不动，如：修改入队次数为12次或修改出队次数为10次，程序会卡住，只有队列满足要求后，才能继续执行。可以通过设置会话在运行时的等待时间来解除阻断：  
+
+	import tensorflow as tf
+
+	# 创建一个随机队列，队列最大长度为10，出队后最小长度为2
+	q = tf.RandomShuffleQueue(capacity=10, min_after_dequeue=2, dtypes="float")
+	run_options = tf.RunOptions(timeout_in_ms = 10000)  # 等待10秒
+	sess = tf.Session()
+	for i in range(0, 12): #12次入队,会产生阻塞
+	  try:
+	    sess.run(q.enqueue(i),options=run_options)
+	  except tf.errors.DeadlineExceededError:
+	    print('out of range')
+
+	for i in range(0, 8): # 8次出队
+	  print(sess.run(q.dequeue()))
+
+**队列管理器QueueRunner**  
+
+	# 创建一个含有队列的图
+	q = tf.FIFOQueue(1000, "float")
+	counter = tf.Variable(0.0)    # 计数器
+	increment_op = tf.assign_add(counter, tf.constant(1.0))    # 操作：给计数器加1
+	enqueue_op = q.enqueue([counter]) # 操作：计数器值加入队列
+	# 创建一个队列管理器 QueueRunner，用这两个操作向队列 q 中添加元素。
+	qr = tf.train.QueueRunner(q, enqueue_ops=[increment_op, enqueue_op] * 1)
+	#主线程
+	with tf.Session() as sess:
+	  sess.run(tf.global_variables_initializer())
+	  enqueue_threads = qr.create_threads(sess, start=True)  # 启动入队线程
+	  #主线程
+	  for i in range(10):
+    	print (sess.run(q.dequeue()))
+
+
+以上程序，输出不是连续的自然数，且线程被阻断（因为加1操作和入队操作不同步，可能加1操作执行了很多次之后，才会进行一次入队操作）。  
+QueueRunner 有一个问题就是：入队线程自顾自地执行，在需要的出队操作完成之后，程序没法结束。  
+
+**线程和协调器(coordinator)**  
+使用协调器（coordinator）来管理线程;所有队列管理器被默认加在图的 tf.GraphKeys.QUEUE_RUNNERS 集合中。    
+
+	# 创建一个含有队列的图
+	q = tf.FIFOQueue(1000, "float")
+	counter = tf.Variable(0.0)    # 计数器
+	increment_op = tf.assign_add(counter, tf.constant(1.0))    # 操作：给计数器加1
+	enqueue_op = q.enqueue([counter]) # 操作：计数器值加入队列
+	# 创建一个队列管理器 QueueRunner，用这两个操作向队列 q 中添加元素。
+	qr = tf.train.QueueRunner(q, enqueue_ops=[increment_op, enqueue_op] * 1)
+	
+	# 主线程
+	sess = tf.Session()
+	sess.run(tf.global_variables_initializer())
+	# Coordinator：协调器，协调线程间的关系可以视为一种信号量，用来做同步
+	coord = tf.train.Coordinator()
+	# 启动入队线程，协调器是线程的参数
+	enqueue_threads = qr.create_threads(sess, coord = coord,start=True)
+	
+	# 使用方式1
+	# 主线程
+	for i in range(0, 10):
+	  print(sess.run(q.dequeue()))
+	# coord.request_stop()# 通知其他线程关闭
+	# coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回
+	
+	# 使用方式2
+	coord.request_stop()# 通知其他线程关闭
+	# 主线程
+	for i in range(0, 10):
+	  try:
+	    print(sess.run(q.dequeue()))
+	  except tf.errors.OutOfRangeError:
+	    break
+	coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回
+
+### 数据加载
+TensorFlow 作为符号编程框架，需要先构建数据流图，再读取数据，随后进行模型训练。  
+TensorFlow 官方网站给出了以下读取数据3种方法：  
+1. 预加载数据（preloaded data）：在 TensorFlow 图中定义常量或变量来保存所有数据。
+2. 填充数据（feeding）：Python 产生数据，再把数据填充后端。
+3. 从文件读取数据（reading from file）：从文件中直接读取，让队列管理器从文件中读取数据。
+
+**预加载数据**  
+
+	x1 = tf.constant([2, 3, 4])  
+	x2 = tf.constant([4, 0, 1])  
+	y = tf.add(x1, x2)
+
+**填充数据**  
+
+	import tensorflow as tf  
+	# 设计图  
+	a1 = tf.placeholder(tf.int16)  
+	a2 = tf.placeholder(tf.int16)  
+	b = tf.add(x1, x2)  
+	# 用Python产生数据  
+	li1 = [2, 3, 4]  
+	li2 = [4, 0, 1]  
+	# 打开一个会话，将数据填充给后端 
+	with tf.Session() as sess:  
+	  print sess.run(b, feed_dict={a1: li1, a2: li2})
+
+**文件读取数据**  
+
+实例代码：code/tfrecord.py
+
+1. 把样本数据写入 TFRecords 二进制文件；  
+TFRecords 是一种二进制文件，能更好地利用内存，更方便地复制和移动，并且不需要单独的标记文件。具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/convert_to_records.py  
+将数据填入到 tf.train.Example 的协议缓冲区（protocol buffer）中，将协议缓冲区序列化为一个字符串，通过 tf.python_io.TFRecordWriter 写入 TFRecords 文件。  
+
+2. 从队列中读取  
+（1）创建张量，从二进制文件读取一个样本；  
+（2）创建张量，从二进制文件随机读取一个 mini-batch；  
+（3）把每一批张量传入网络作为输入节点。  
+具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/fully_connected_reader.py  
+首先我们定义从文件中读取并解析一个样本;接下来使用 tf.train.shuffle_batch 将前面生成的样本随机化，获得一个最小批次的张量;最后，我们把生成的 batch 张量作为网络的输入，进行训练。  
 
 
 
