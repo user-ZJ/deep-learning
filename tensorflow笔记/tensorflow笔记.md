@@ -33,6 +33,7 @@ https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/math_
 2. 会话：  
 会话（session）提供在图中执行操作的一些方法。一般的模式是，建立会话，此时会生成一张空图，在会话中添加节点和边，形成一张图，然后执行。在调用 Session 对象的 run()方法来执行图时，传入一些 Tensor，这个过程叫填充（feed）；返回的结果类型根据输入的类型而定，这个过程叫取回（fetch）  
 会话是图交互的一个桥梁，一个会话可以有多个图，会话可以修改图的结构，也可以往图中注入数据进行计算。因此，会话主要有两个 API 接口：Extend 和 Run。Extend 操作是在 Graph 中添加节点和边，Run 操作是输入计算的节点和填充必要的数据后，进行运算，并输出运算结果。  
+**InteractiveSession()创建交互式上下文的 TensorFlow 会话，与常规会话不同的是，交互式会话会成为默认会话，方法（如 tf.Tensor.eval 和 tf.Operation.run）都可以使用该会话来运行操作（OP）**  
 3. 设备：  
 设备（device）是指一块可以用来运算并且拥有自己的地址空间的硬件，如 GPU 和 CPU。TensorFlow 为了实现分布式执行操作，充分利用计算资源，可以明确指定操作在哪个设备上执行  
 如：with tf.device("/gpu:1")  
@@ -551,6 +552,97 @@ TFRecords 是一种二进制文件，能更好地利用内存，更方便地复�
 （3）把每一批张量传入网络作为输入节点。  
 具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/fully_connected_reader.py  
 首先我们定义从文件中读取并解析一个样本;接下来使用 tf.train.shuffle_batch 将前面生成的样本随机化，获得一个最小批次的张量;最后，我们把生成的 batch 张量作为网络的输入，进行训练。  
+
+## tensorflow源码
+
+### contrib
+contrib 目录中保存的是将常用的功能封装成的高级 API。但是这个目录并不是官方支持的，很有可能在高级 API 完善后被官方迁移到核心的 TensorFlow 目录中或去掉，现在有一部分包（package）在https://github.com/tensorflow/models 有了更完整的体现。  
+**framework：**  
+很多函数（如 get_variables、get_global_step）都在这里定义，还有一些废弃或者不推荐（deprecated）的函数  
+**layers：**  
+这个包主要有 initializers.py、layers.py、optimizers.py、regularizers.py、summaries.py 等文件。  
+initializers.py 中主要是做变量初始化的函数。  
+layers.py 中有关于层操作和权重偏置变量的函数。  
+optimizers.py 中包含损失函数和global_step 张量的优化器操作。  
+regularizers.py 中包含带有权重的正则化函数。  
+summaries.py 中包含将摘要操作添加到 tf.GraphKeys.SUMMARIES 集合中的函数。  
+**learn：**  
+这个包是使用 TensorFlow 进行深度学习的高级 API，包括完成训练模型和评估模型、读取批处理数据和队列功能的API封装。  
+**rnn：**  
+这个包提供了额外的 RNN Cell，也就是对 RNN 隐藏层的各种改进，如 LSTMBlockCell、GRUBlockCell、FusedRNNCell、GridLSTMCell、AttentionCellWrapper 等。  
+**seq2seq：**  
+这个包提供了建立神经网络 seq2seq 层和损失函数的操作。  
+**slim：**   
+TensorFlow-Slim （TF-Slim）是一个用于定义、训练和评估 TensorFlow 中的复杂模型的轻量级库。在使用中可以将 TF-Slim 与 TensorFlow 的原生函数和 tf.contrib 中的其他包进行自由组合。TF-Slim 现在已经被逐渐迁移到 TensorFlow 开源的 Models中    
+
+### core
+TensorFlow 的原始实现   
+
+	├── BUILD
+	├── common_runtime # 公共运行库
+	├── debug
+	├── distributed_runtime # 分布式执行模块，含有 grpc session、grpc worker、 grpc master 等
+	├── example
+	├── framework # 基础功能模块
+	├── graph
+	├── kernels # 一些核心操作在 CPU、CUDA 内核上的实现
+	├── lib # 公共基础库
+	├── ops
+	├── platform # 操作系统实现相关文件
+	├── protobuf # .proto 文件，用于传输时的结构序列化
+	├── public # API 的头文件目录
+	├── user_ops
+	└── util  
+
+### examples  
+examples 目录中给出了深度学习的一些例子，包括 MNIST、Word2vec、Deepdream、Iris、HDF5 的一些例子，对入门非常有帮助。此外，这个目录中还有 TensorFlow 在 Android 系统上的移动端实现，以及一些扩展为 .ipynb 的文档教程，可以用 jupyter 打开  
+
+### g3doc  
+TensorFlow 的离线手册  
+g3doc/api_docs 目录中的任何内容都是从代码中的注释生成的，不应该直接编辑。脚本 tools/docs/gen_docs.sh 是用来生成 API 文档的。如果无参数调用，它只重新生成 Python API 文档（即操作的文档，包括用 Python 和 C++ 定义的）。如果传递了 -a，运行脚本时还会重新生成 C++ API 的文档。这个脚本必须从 tools/docs 目录调用，如果使用参数 -a，需要安装 doxygen  
+
+### python
+激活函数、卷积函数、池化函数、损失函数等实现  
+
+### tensorboard  
+tensorboard 目录中是实现 TensorFlow 图表可视化工具的代码，代码是基于 Tornado 来实现网页端可视化的。  
+绘制出的图形在 HISTOGRAMS 面板中：  
+tf.summary.histogram('activations', activations)  
+绘制出的图形在 SCALARS 面板中：  
+tf.summary.scalar('accuracy', accuracy)  
+
+## TensorFlow 程序
+
+code/first_tensorflow.py  
+
+TensorFlow 的运行方式分如下4步：
+
+（1）加载数据及定义超参数；（生成及加载数据）
+
+（2）构建网络；（定义网络模型，误差函数，优化器）
+
+（3）训练模型；（使用sess.run执行优化器）
+
+（4）评估模型和进行预测。
+
+**超参数**  
+1. 学习率（learning rate）：权重更新步长，学习率设置得越大，训练时间越短，速度越快；而学习率设置得越小，训练得准确度越高。  
+2. mini-batch 大小：每批大小决定了权重的更新规则。例如，大小为32时，就是把32个样本的梯度全部计算完，然后求平均值，去更新权重。批次越大训练的速度越快  
+3. 正则项系数（regularization parameter，λ）：在较复杂的网络发现出现了明显的过拟合（在训练数据准确率很高但测试数据准确率反而下降），可以考虑增加此项
+
+
+### MNIST
+已经有各种方法被应用在 MNIST 这个训练集上,代码目录在tensorflow/examples/tutorials/mnist/   
+
+	mnist_softmax.py：MNIST 采用 Softmax 回归训练。  
+	fully_connected_feed.py：MNIST 采用 Feed 数据方式训练。  
+	mnist_with_summaries.py：MNIST 使用卷积神经网络（CNN），并且训练过程可视化。  
+	mnist_softmax_xla.py.py：MNIST 使用 XLA 框架  
+
+
+
+
+
 
 
 
