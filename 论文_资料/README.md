@@ -1,0 +1,1 @@
+* Kaiming He, Ross Girshick, Piotr Dollár:Rethinking ImageNet Pre-training.In:CVPR.(2018)
