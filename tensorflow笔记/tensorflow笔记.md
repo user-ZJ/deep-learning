@@ -392,6 +392,18 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
  	      for op in graph.get_operations():
             print(op.name, op.values())
 
+##### pb转tflite
+	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install tf_nightly
+	import tensorflow as tf
+	filepath="model.pb"
+	inp=["Placeholder"]
+	opt=["MobilenetV1/logits/pool/AvgPool"]
+	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt)
+	tflite_model=converter.convert()
+	f = open("model.tflite", "wb")
+	f.write(tflite_model)
+
+
 ### 队列和线程
 
 #### 队列
