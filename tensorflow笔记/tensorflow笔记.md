@@ -326,11 +326,22 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
         	graph_def.ParseFromString(f.read())
         	# 在空白图中加载GraphDef中的图
         	tf.import_graph_def(graph_def,name='')
+		
+		with tf.Session() as sess:
         	# 在图中获取张量需要使用graph.get_tensor_by_name加张量名
         	# 这里的张量可以直接用于session的run方法求值了
         	# 补充一个基础知识，形如'conv1'是节点名称，而'conv1:0'是张量名称，表示节点的第一个输出张量
-        	input_tensor = self.graph.get_tensor_by_name(self.input_tensor_name)
-        	layer_tensors = [self.graph.get_tensor_by_name(name + ':0') for name in 	layer_operation_names]
+			init = tf.global_variables_initializer()
+			sess.run(init)
+			image = cv.imread("1.jpg")
+			image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+			image = cv.resize(image, (224, 224))
+			image = np.expand_dims(image, 0)
+			image = image.astype(np.float32)
+        	input_tensor = self.graph.get_tensor_by_name("input:0")
+        	output_tensor = self.graph.get_tensor_by_name('output:0')
+			print(sess.run(output,feed_dict={input_x:image}))
+			
 
 	#使用pbtxt
 	output_graph_def  = tf.Graph()
@@ -402,6 +413,50 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	tflite_model=converter.convert()
 	f = open("model.tflite", "wb")
 	f.write(tflite_model)
+
+##### tflite测试
+	import numpy as np
+	import tensorflow as tf
+	import cv2 as cv
+	
+	input_mean = 127.5
+	input_std = 127.5
+	
+	# Load TFLite model and allocate tensors.
+	tflite_model = tf.contrib.lite.Interpreter(model_path="model.tflite")
+	tflite_model.allocate_tensors()
+	
+	# Get input and output tensors.
+	input_details = tflite_model.get_input_details()
+	output_details = tflite_model.get_output_details()
+	
+	# Test model on random input data.
+	input_shape = input_details[0]['shape']
+	
+	image = cv.imread("1.jpg")
+	image = cv.cvtColor(image,cv.COLOR_BGR2RGB)
+	image = cv.resize(image,(224,224))
+	image = np.expand_dims(image,0)
+	image = image.astype(np.float32)
+	image = np.subtract(image, input_mean)
+	image = np.multiply(image, 1.0 / input_std)
+	print(image.shape,image.dtype)
+	
+	
+	
+	input_data = np.array(np.random.random_sample(input_shape), dtype=np.float32)  # 输入随机数
+	
+	input_data = np.subtract(input_data, input_mean)
+	input_data = np.multiply(input_data, 1.0 / input_std)
+	print(input_data.shape)
+	
+	tflite_model.set_tensor(input_details[0]['index'], image)
+	# tflite_model.set_tensor(input_details[0]['index'], input_data)
+	
+	tflite_model.invoke()
+	output_data = tflite_model.get_tensor(output_details[0]['index'])
+	print("out_class")
+	print(output_data)
 
 
 ### 队列和线程
