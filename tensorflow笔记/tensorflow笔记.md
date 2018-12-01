@@ -28,6 +28,14 @@ https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/math_
 队列和同步操作	Enqueue、Dequeue、MutexAcquire、MutexRelease  
 控制张量流动的操作	Merge、Switch、Enter、Leave、NextIteration  
 
+> tf.stack,tf.concat:将两个张量合并，tf.unstack:是将一个高阶数的张量在某个axis上分解为低阶数的张量  
+> tf.expand_dims:增加一个维度；tf.squeeze:从tensor中删除所有大小是1的维度；tf.squeeze(cropped,squeeze_dims=0):删除指定尺寸为1的维度  
+> tf.cast：张量数据类型转换  
+
+### 图像预处理
+https://blog.csdn.net/lovelyaiq/article/details/78716325
+
+
 ### 其他概念
 1. 图：把操作任务描述成有向无环图  
 2. 会话：  
@@ -60,6 +68,7 @@ with tf.Session() as sess:
 	tf.Graph.as_default()	将某图设置为默认图，并返回一个上下文管理器。如果不显式添加一个默认图，系统会自动设置一个全局的默认图。所设置的默认图，在模块范围内定义的节点都将默认加入默认图中  
 	tf.Graph.device(device_name_or_function)	定义运行图所使用的设备，并返回一个上下文管理器  
 	tf.Graph.name_scope(name)	为节点创建层次化的名称，并返回一个上下文管理器  
+	tf.get_default_graph().as_graph_def().node：获取图中所有节点
  
 	tf.Operation 类代表图中的一个节点，用于计算张量数据，该类型由节点构造器（如 tf.matmul()或者 Graph.create_op()）产生  
 	tf.Operation.name	操作的名称  
@@ -607,6 +616,8 @@ TensorFlow 官方网站给出了以下读取数据3种方法：
 
 **文件读取数据**  
 
+将图片写入tfrecord文件要以int的数值写入，float32可能会导致精度丢失
+
 实例代码：code/tfrecord.py
 
 1. 把样本数据写入 TFRecords 二进制文件；  
@@ -706,6 +717,57 @@ TensorFlow 的运行方式分如下4步：
 	mnist_with_summaries.py：MNIST 使用卷积神经网络（CNN），并且训练过程可视化。  
 	mnist_softmax_xla.py.py：MNIST 使用 XLA 框架  
 
+### tf.train.batch_join和tf.train.batch
+	batch(tensors,batch_size,num_threads=1,capacity=32,enqueue_many=False,
+		shapes=None,dynamic_pad=False,allow_smaller_final_batch=False,shared_name=None,name=None)
+创建在参数tensors里的张量的batch  
+参数tensors可以是一个张量的列表或者字典。函数的返回值将会和参数tensors的类型一致  
+这个函数使用队列来实现。一个用于队列的QueueRunner对象被添加当前图的QUEUE_RUNNER的集合中。
+
+	batch_join(tensors_list,batch_size,capacity=32,enqueue_many=False,shapes=None,
+    	dynamic_pad=False,allow_smaller_final_batch=False,shared_name=None,name=None)  
+运行张量列表来填充队列，以创建样本的批次。  
+tensors_list参数是一个张量元组的列表，或者张量字典的列表。在列表中的每个元素被类似于tf.train.batch()函数中的tensors一样对待。  
+这个函数是非确定性的，因为它为每个张量启动了独立的线程  
+在不同的线程中入队不同的张量列表。用队列实现——队列的QueueRunner被添加到当前图的QUEUE_RUNNER集合中。  
+len(tensors_list)个线程被启动，第i个线程入队来自tensors_list[i]中的张量。tensors_list[i1][j]比如在类型和形状上与tensors_list[i2][j]相匹配，除了当enqueue_many参数为True的时候的第一维。  
+
+
+
+# F&Q
+**tf.image.convert_image_dtype** 
+图片经过tf.image.decode_jpeg解码后为[0,255]的uint8类型，如果使用image = tf.image.convert_image_dtype(image, dtype=tf.float32)转换float32类型，会被缩放到[0,1]之间，不建议使用。在tf中建议使用preprocessing对数据进行预处理  
+
+**Session、Graph、op、global_variables_initializer**
+* graph定义了计算方式，是一些加减乘除等运算的组合，类似于一个函数。它本身不会进行任何计算，也不保存任何中间计算结果  
+* session用来运行一个graph，或者运行graph的一部分，它类似于一个执行者，给graph灌入输入数据，得到输出，并保存中间的计算结果。同时它也给graph分配计算资源（如内存、显卡等）  
+* 一个graph可以供多个session使用，而一个session不一定需要使用graph的全部，可以只使用其中的一部分  
+* 运行多个graph需要多个session，而每个session会试图耗尽所有的计算资源，开销太大，不建议这样使用
+* graph之间没有数据通道，要人为通过python/numpy传数据  
+* graph是由一系列op构成的  
+* global_variables_initializer用来初始化计算图中所有global variable的op
+* global_variables_initializer本身就是一个op，不要加入到graph中才能使用session运行
+如下实例：
+	#运行报错
+	g1 = tf.Graph()
+	with g1.as_default():
+		x = tf.Variable(tf.random_normal([1]))
+    	y = tf.Variable(tf.random_normal([1]))
+    	z = tf.add(x, y)
+	sess = tf.Session(graph=g1)
+	sess.run(tf.global_variables_initializer())
+	print(sess.run(z))
+
+	#正确写法为
+	g1 = tf.Graph()
+	with g1.as_default():
+		x = tf.Variable(tf.random_normal([1]))
+    	y = tf.Variable(tf.random_normal([1]))
+    	z = tf.add(x, y)
+		init = tf.global_variables_initializer()
+	sess = tf.Session(graph=g1)
+	sess.run(init)
+	print(sess.run(z))
 
 
 
