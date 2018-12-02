@@ -68,7 +68,7 @@ with tf.Session() as sess:
 	tf.Graph.as_default()	将某图设置为默认图，并返回一个上下文管理器。如果不显式添加一个默认图，系统会自动设置一个全局的默认图。所设置的默认图，在模块范围内定义的节点都将默认加入默认图中  
 	tf.Graph.device(device_name_or_function)	定义运行图所使用的设备，并返回一个上下文管理器  
 	tf.Graph.name_scope(name)	为节点创建层次化的名称，并返回一个上下文管理器  
-	tf.get_default_graph().as_graph_def().node：获取图中所有节点
+	**tf.get_default_graph().as_graph_def().node：获取图中所有节点**
  
 	tf.Operation 类代表图中的一个节点，用于计算张量数据，该类型由节点构造器（如 tf.matmul()或者 Graph.create_op()）产生  
 	tf.Operation.name	操作的名称  
@@ -92,18 +92,23 @@ with tf.Session() as sess:
 
 2. 可视化  
 	可视化时，需要在程序中给必要的节点添加摘要（summary），摘要会收集该节点的数据，并标记上第几步、时间戳等标识，写入事件文件（event file）中。tf.summary.FileWriter 类用于在目录中创建事件文件，并且向文件中添加摘要和事件，用来在 TensorBoard 中展示。    
-	tf.summary.FileWriter.init(logdir, graph=None, max_queue= 10, flush_secs=120, graph_def=None)	创建 FileWriter 和事件文件，会在 logdir 中创建一个新的事件文件  
+	tf.summary.FileWriter(logdir, graph=None, max_queue= 10, flush_secs=120, graph_def=None)	创建 FileWriter 和事件文件，会在 logdir 中创建一个新的事件文件,调用其add_summary（）方法将训练过程数据保存在filewriter指定的文件中    
 	tf.summary.FileWriter.add_summary(summary, global_step=None)	将摘要添加到事件文件  
 	tf.summary.FileWriter.add_event(event)	向事件文件中添加一个事件  
 	tf.summary.FileWriter.add_graph(graph, global_step=None, graph_def=None)	向事件文件中添加一个图  
 	tf.summary.FileWriter.get_logdir()	获取事件文件的路径  
 	tf.summary.FileWriter.flush()	将所有事件都写入磁盘  
 	tf.summary.FileWriter.close()	将事件写入磁盘，并关闭文件操作符  
-	tf.summary.scalar(name, tensor, collections=None)	输出包含单个标量值的摘要  
-	tf.summary.histogram(name, values, collections=None)	输出包含直方图的摘要  
+	tf.summary.scalar(name, tensor, collections=None)	输出包含单个标量值的摘要,一般在画loss,accuary时会用到这个函数    
+	tf.summary.histogram(name, values, collections=None)	输出包含直方图的摘要,一般用来显示训练过程中变量的分布情况  
+	tf.summary.distribution  分布图，一般用于显示weights分布  
+	tf.summary.text  可以将文本类型的数据转换为tensor写入summary    
 	tf.summary.audio(name, tensor, sample_rate, max_outputs=3, collections=None)	输出包含音频的摘要  
 	tf.summary.image(name, tensor, max_outputs=3, collections= None)	输出包含图片的摘要  
-	tf.summary.merge(inputs, collections=None, name=None)	合并摘要，包含所有输入摘要的值  
+	tf.summary.merge(inputs, collections=None, name=None)	选择要保存的信息还需要用到tf.get_collection()函数    
+	tf.summary.merge_all()  将所有summary全部保存到磁盘，以便tensorboard显示。如果没有特殊要求，一般用这一句就可一显示训练时的各种信息了。  
+	https://www.cnblogs.com/lyc-seu/p/8647792.html
+	
 
 ### 变量作用域
 在 TensorFlow 中有两个作用域（scope），一个是 name_scope，另一个是 variable_scope。variable_scope 主要是给 variable_name 加前缀，也可以给 op_name 加前缀；name_scope 是给 op_name 加前缀。  
@@ -731,6 +736,21 @@ tensors_list参数是一个张量元组的列表，或者张量字典的列表�
 这个函数是非确定性的，因为它为每个张量启动了独立的线程  
 在不同的线程中入队不同的张量列表。用队列实现——队列的QueueRunner被添加到当前图的QUEUE_RUNNER集合中。  
 len(tensors_list)个线程被启动，第i个线程入队来自tensors_list[i]中的张量。tensors_list[i1][j]比如在类型和形状上与tensors_list[i2][j]相匹配，除了当enqueue_many参数为True的时候的第一维。  
+
+
+## tensorflow开发流程
+1. 数据预处理，将images->decode->resize->encode->tfrecord，一般1000张图片存放到一个tfrecord文件中
+2. 对tfrecord文件名列表进行混淆，获取tfrecord文件内容，对内容进行混淆，获取batch size images和labels，需要调用tf.train.start_queue_runners(sess=sess)启动线程，获取数据。  
+https://blog.csdn.net/dcrmg/article/details/79780331  
+3. 定义loss函数，可以添加正则项，获取total loss，用于计算梯度
+4. 定义学习率衰减，部分优化器需要手动设置学习率衰减，tf.train.exponential_decay
+5. 定义优化器，在训练过程中优化权重等参数，tf.train.GradientDescentOptimizer
+6. 创建训练器
+slim.learning.create_train_op：a.计算loss，b.根据梯度更新权重，c.返回loss的值；和slim.learning.train配合使用   
+tf.contrib.layers.optimize_loss：Given loss and parameters for optimizer, returns a training op；
+7. 训练模型 
+slim.learning.train():运行slim.learning.create_train_op创建的对象  
+_, loss_value = sess.run([train_op, total_loss]) :运行tf.contrib.layers.optimize_loss创建的对象  
 
 
 
