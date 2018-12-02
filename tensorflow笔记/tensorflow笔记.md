@@ -737,6 +737,25 @@ tensors_list参数是一个张量元组的列表，或者张量字典的列表�
 在不同的线程中入队不同的张量列表。用队列实现——队列的QueueRunner被添加到当前图的QUEUE_RUNNER集合中。  
 len(tensors_list)个线程被启动，第i个线程入队来自tensors_list[i]中的张量。tensors_list[i1][j]比如在类型和形状上与tensors_list[i2][j]相匹配，除了当enqueue_many参数为True的时候的第一维。  
 
+### tf.ConfigProto()
+tf.ConfigProto()配置Session运行参数和指定GPU设备：  
+log_device_placement：tf.ConfigProto()中参数log_device_placement = True ,可以获取到 operations 和 Tensor 被指派到哪个设备(几号CPU或几号GPU)上运行,会在终端打印出各项操作是在哪个设备上运行的  
+allow_soft_placement：如果手动设置的设备不存在或者不可用，允许tf自动选择一个存在并且可用的设备来运行操作  
+限制GPU资源使用：  
+a. 动态申请显存  
+	config = tf.ConfigProto()
+	config.gpu_options.allow_growth = True
+	session = tf.Session(config=config)
+b. 限制GPU使用率  
+	config = tf.ConfigProto()
+	config.gpu_options.per_process_gpu_memory_fraction = 0.4  #占用40%显存
+	session = tf.Session(config=config)
+	或者
+	gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
+	config=tf.ConfigProto(gpu_options=gpu_options)
+	session = tf.Session(config=config)
+
+
 
 ## tensorflow开发流程
 1. 数据预处理，将images->decode->resize->encode->tfrecord，一般1000张图片存放到一个tfrecord文件中
