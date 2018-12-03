@@ -36,7 +36,9 @@ BN在batch的维度上norm，归一化维度为[N，H，W]，对batch中对应�
 LN避开了batch维度，归一化的维度为[C，H，W]；  
 IN 归一化的维度为[H，W]；  
 而GN介于LN和IN之间，其首先将channel分为许多组（group），对每一组做归一化，及先将feature的维度由[N, C, H, W]reshape为[N, G，C//G , H, W]，归一化的维度为[C//G , H, W]  
+作者在论文中给出G设为32较好  
 
+从深度学习上来讲，完全可以认为卷积提取的特征是一种非结构化的特征或者向量，每一层有很多的卷积核，这些核学习到的特征并不完全是独立的，某些特征具有相同的分布，因此可以被group
 
 # Synchronized Batch Normalization
 
