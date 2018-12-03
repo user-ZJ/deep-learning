@@ -19,8 +19,26 @@
 ![](https://i.imgur.com/mWqJlMI.png)   
 作者在文章中说应该把BN放在激活函数之前，这是因为Wx+b具有更加一致和非稀疏的分布。但是也有人做实验表明放在激活函数后面效果更好。这是实验链接，里面有很多有意思的对比实验：https://github.com/ducha-aiki/caffenet-benchmark  
 
-BN统一了各层的方差，以适用一个统一的学习率，作用在激活函数之前，防止否个特征对网络优化起到主导作用，可以选择较大的初始学习率，加快训练速度，不需要适用dropout和L2正则化。  
+BN统一了各层的方差，以适用一个统一的学习率，作用在激活函数之前，防止某个特征对网络优化起到主导作用，可以选择较大的初始学习率，加快训练速度，不需要适用dropout和L2正则化。  
 
+
+# Group Normalization
+## BN存在的问题
+Batch Normalization，是以batch的维度做归一化，那么问题就来了，此归一化方式对batch是independent的，过小的batch size会导致其性能下降，一般来说每GPU上batch设为32最合适  
+BN问题1：对于一些其他深度学习任务batch size往往只有1-2，比如目标检测，图像分割，视频分类上，输入的图像数据很大，较大的batchsize显存吃不消，对于batch size较小的训练，Batch Normalization较大；  
+BN问题2：Batch Normalization是在batch这个维度上Normalization，但是这个维度并不是固定不变的，比如训练和测试时一般不一样，一般都是训练的时候在训练集上通过滑动平均预先计算好平均-mean，和方差-variance参数。在测试的时候，不再计算这些值，而是直接调用这些预计算好的来用，但是，当训练数据和测试数据分布有差别是时，训练机上预计算好的数据并不能代表测试数据，这就导致在训练，验证，测试这三个阶段存在inconsistency  
+
+## GN原理
+BN，LN（Layer Norm），IN（Instance Norm），GN区别：  
+![](image/GroupNormalization.png)  
+深度网络中的数据维度一般是[N, C, H, W]或者[N, H, W，C]格式，N是batch size，H/W是feature的高/宽，C是feature的channel，压缩H/W至一个维度，其三维的表示如上图，假设单个方格的长度是1，那么其表示的是[6, 6，*, * ]  
+BN在batch的维度上norm，归一化维度为[N，H，W]，对batch中对应的channel归一化；  
+LN避开了batch维度，归一化的维度为[C，H，W]；  
+IN 归一化的维度为[H，W]；  
+而GN介于LN和IN之间，其首先将channel分为许多组（group），对每一组做归一化，及先将feature的维度由[N, C, H, W]reshape为[N, G，C//G , H, W]，归一化的维度为[C//G , H, W]  
+
+
+# Synchronized Batch Normalization
 
 
 
