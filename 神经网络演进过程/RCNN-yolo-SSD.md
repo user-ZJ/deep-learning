@@ -16,8 +16,10 @@
 名词：  
 bounding boxes：预测的边界框  
 Priorbox：先验框  
-ground truth：标记框
-region proposal：候选区域
+ground truth：标记框  
+region proposal：区域生成/候选框  
+ROI：Region of Interest的简写，一般是指图像上的区域框/候选框  
+RoIs：其表示所有RoI的N*5的矩阵。其中N表示RoI的数量，第一列表示图像index，其余四列表示其余的左上角和右下角坐标，坐标的参考系不是针对feature map这张图的，而是针对原图的  
 
 ## 1.非极大值抑制
 非极大值抑制顾名思义就是抑制不是极大值的元素，搜索局部的极大值  
@@ -90,7 +92,7 @@ Region CNN(RCNN)可以说是利用深度学习进行目标检测的开山之作�
 ![](https://i.imgur.com/165JX9T.png)  
 
 ### 位置精修  
-目标检测问题的衡量标准是重叠面积：许多看似准确的检测结果，往往因为候选框不够准确，重叠面积很小。故需要一个位置精修步骤。 回归器对每一类目标，使用一个线性脊回归器进行精修。正则项。
+目标检测问题的衡量标准是重叠面积：许多看似准确的检测结果，往往因为候选框不够准确，重叠面积很小。故需要一个位置精修步骤。 回归器对每一类目标，使用一个线性脊回归器进行精修。正则项。  
 输入为深度网络pool5层的4096维特征，输出为xy方向的缩放和平移。 训练样本判定为本类的候选框中，和真值重叠面积大于0.6的候选框。
 https://blog.csdn.net/zijin0802034/article/details/77685438/  
 
@@ -184,7 +186,7 @@ y是pooling后的输出单元，x是pooling前的输入单元，如果y由x pool
 SPPnet用了两种实现尺度不变的方法：   
 1. brute force （single scale），直接将image设置为某种scale，直接输入网络训练，期望网络自己适应这个scale。   
 2. image pyramids （multi scale），生成一个图像金字塔，在multi-scale训练时，对于要用的RoI，在金字塔上找到一个最接近227x227的尺寸，然后用这个尺寸训练网络。   
-虽然看起来2比较好，但是非常耗时，而且性能提高也不对，大约只有%1，所以论文在实现中还是用了1  
+虽然看起来2比较好，但是非常耗时，而且性能提高也不多，大约只有%1，所以论文在实现中还是用了1  
 
 ### Which layers to finetune?
 1. 对于较深的网络，比如VGG，卷积层和全连接层是否一起tuning有很大的差别（66.9 vs 61.4）  
@@ -201,6 +203,9 @@ U为（u × t）矩阵，Σt为（t × t）矩阵，V为（v x t）矩阵，SVD�
 ![](https://i.imgur.com/2DBDZ9k.png)  
 
 ## 6. faster rcnn
+
+Fast R-CNN依赖于外部候选区域方法，如选择性搜索。但这些算法在CPU上运行且速度很慢。在测试中，Fast R-CNN需要2.3秒来进行预测，其中2秒用于生成2000个ROI  
+
 Faster RCNN网络结构：  
 • 将RPN放在最后一个卷积层的后面   
 • RPN直接训练得到候选区域    
@@ -215,15 +220,18 @@ Faster RCNN解决了一下三个问题：
 
 
 Faster RCNN网络结构：  
-![](https://i.imgur.com/d3NSnvf.png)  
+![](https://i.imgur.com/2ASnA6g.png)  
 ![](https://i.imgur.com/nxm55a9.png)  
 
-原始特征提取（raw feature extraction）直接套用ImageNet上常见的分类网络即可。  
+原始特征提取（raw feature extraction）直接套用ImageNet上常见的分类网络即可。 额外添加一个conv+relu层，输出51*39*256维特征（feature）  
 
 ### RPN（Region Proposal Networks）
+先通过SPP根据一一对应的点从conv5映射回原图，根据设计不同的固定初始尺度训练一个网络，就是给它大小不同（但设计固定）的region图，然后根据与ground truth的覆盖率给它正负标签，让它学习里面是否有object即可。  
+由于检测网后面会做位置精修，为了降低模型复杂度，减少候选框数量，采用深度网络，固定尺度变化，固定scale ratio变化（长宽比），固定采样方式（在最后一层的feature map上采样）  
 RPN是在CNN训练得到的用于分类任务的feature map基础上，对所有可能的候选框进行判别。由于后续还有位置精修步骤，所以候选框实际比较稀疏    
+![](https://i.imgur.com/yYDmjE8.png)  
 • 在feature map上滑动窗口。   
-• 建一个神经网络用于物体分类（x_class）+框位置的回归(x_reg)。   
+• 建一个神经网络用于物体分类（x_class）+框位置的回归(x_reg),对于特征图中的每一个位置，RPN会做k次预测。因此，RPN将输出4×k个坐标和每个位置上2×k个得分,faster RCNN中，使用3个不同宽高比的3个不同大小的锚点框（k=9个锚点框）       
 • 滑动窗口的位置提供了物体的大体位置信息。   
 • 框的回归修正框的位置，使其与对应的bbox位置更相近。  
 ![](https://i.imgur.com/9KIjH14.png)  
@@ -232,8 +240,11 @@ RPN是在CNN训练得到的用于分类任务的feature map基础上，对所有
 **归一化尺度**：输入特征提取网络的大小，在测试时设置，源码中opts.test_scale=600。anchor在这个尺度上设定。这个参数和anchor的相对大小决定了想要检测的目标范围。  
 **网络输入尺度**：输入特征检测网络的大小，在训练时设置，源码中为224\*224。  
 
+## 7. SSD
 
-
+## 8. yolo-v1
+YOLO创造性的将物体检测任务直接当作回归问题（regression problem）来处理，将候选区和检测两个阶段合二为一。只需一眼就能知道每张图像中有哪些物体以及物体的位置  
+事实上，YOLO也并没有真正的去掉候选区，而是直接将输入图片划分成7x7=49个网格，每个网格预测两个边界框，一共预测49x2=98个边界框。可以近似理解为在输入图片上粗略的选取98个候选区，这98个候选区覆盖了图片的整个区域，进而用回归预测这98个候选框对应的边界框  
 
 
 
