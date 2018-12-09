@@ -1,3 +1,16 @@
+# Normalization
+Normalization 的中文翻译一般叫做「规范化」，是一种对数值的特殊函数变换方法，也就是说假设原始的某个数值是 x，套上一个起到规范化作用的函数，对规范化之前的数值 x 进行转换，形成一个规范化后的数值  
+所谓规范化，是希望转换后的数值x满足一定的特性，至于对数值具体如何变换，跟规范化目标有关，也就是说f() 函数的具体形式，不同的规范化目标导致具体方法中函数所采用的形式不同  
+
+目前 DNN 做 Normalization 最主流的做法：  
+![](https://i.imgur.com/4FcOdbN.png)  
+第一种是原始 BN 论文提出的，放在激活函数之前；另外一种是后续研究提出的，放在激活函数之后，不少研究表明将 BN 放在激活函数之后效果更好  
+对于神经元的激活值来说，不论哪种 Normalization 方法，其规范化目标都是一样的，就是将其激活值规整为均值为 0，方差为 1 的正态分布  
+
+Normalization 具体例子  
+![](https://i.imgur.com/4i1YikP.png)  
+图中给出了这类 Normalization 的一个计算过程的具体例子，例子中假设网络结构是前向反馈网络，对于隐层的三个节点来说，其原初的激活值为 [0.4,-0.6,0.7]，为了可以计算均值为 0 方差为 1 的正态分布，划定集合 S 中包含了这个网络中的 6 个神经元，至于如何划定集合 S 读者可以先不用关心，此时其对应的激活值如图中所示，根据这 6 个激活值，可以算出对应的均值和方差。有了均值和方差，可以利用公式 3 对原初激活值进行变换，如果 r 和 b 被设定为 1，那么可以得到转换后的激活值 [0.21，-0.75,0.50]，对于新的激活值经过非线性变换函数比如 RELU，则形成这个隐层的输出值 [0.21,0,0.50]。这个例子中隐层的三个神经元在某刻进行 Normalization 计算的时候共用了同一个集合 S，在实际的计算中，隐层中的神经元可能共用同一个集合，也可能每个神经元采用不同的神经元集合 S，并非一成不变  
+
 # batch normal
 
 网络训练过程中参数不断改变导致后续每一层输入的分布也发生变化，而学习的过程又要使每一层适应输入的分布，因此我们不得不降低学习率、小心地初始化。  
@@ -20,6 +33,29 @@
 作者在文章中说应该把BN放在激活函数之前，这是因为Wx+b具有更加一致和非稀疏的分布。但是也有人做实验表明放在激活函数后面效果更好。这是实验链接，里面有很多有意思的对比实验：https://github.com/ducha-aiki/caffenet-benchmark  
 
 BN统一了各层的方差，以适用一个统一的学习率，作用在激活函数之前，防止某个特征对网络优化起到主导作用，可以选择较大的初始学习率，加快训练速度，不需要适用dropout和L2正则化。  
+
+# BN缺陷
+1. 如果 Batch Size 太小，则 BN 效果明显下降  
+2. 对于有些像素级图片生成任务来说，BN 效果不佳；  
+3. RNN 等动态网络使用 BN 效果不佳且使用起来不方便  
+4. 训练时和推理时统计量不一致
+
+# Layer Normalization
+直接用同层隐层神经元的响应值作为集合 S 的范围来求均值和方差  
+MLP 中的 LayerNorm  
+![](https://i.imgur.com/BcHh3SD.png)  
+CNN 中的 LayerNorm  
+![](https://i.imgur.com/9zxbNga.png)   
+RNN 中的 LayerNorm  
+![](https://i.imgur.com/KmpSFUs.png)  
+
+Layer Normalization 目前看好像也只适合应用在 RNN 场景下，在 CNN 等环境下效果是不如 BatchNorm 或者 GroupNorm 等模型
+
+# Instance Normalization
+CNN 中的 Instance Normalization，对于图中某个卷积层来说，每个输出通道内的神经元会作为集合 S 来统计均值方差。对于 RNN 或者 MLP，如果在同一个隐层类似 CNN 这样缩小范围，那么就只剩下单独一个神经元，输出也是单值而非 CNN 的二维平面，这意味着没有形成集合 S，所以 RNN 和 MLP 是无法进行 Instance Normalization 操作的  
+
+CNN 中的 Instance Normalization  
+![](https://i.imgur.com/ozlE9AV.png)  
 
 
 # Group Normalization
@@ -46,4 +82,5 @@ IN 归一化的维度为[H，W]；
 
 https://arxiv.org/pdf/1502.03167.pdf
 
-参考：https://blog.csdn.net/u014114990/article/details/52290064
+参考：https://blog.csdn.net/u014114990/article/details/52290064  
+https://www.jiqizhixin.com/articles/2018-08-29-7
