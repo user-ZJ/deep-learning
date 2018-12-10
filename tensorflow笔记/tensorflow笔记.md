@@ -352,9 +352,9 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 			image = cv.resize(image, (224, 224))
 			image = np.expand_dims(image, 0)
 			image = image.astype(np.float32)
-        	input_tensor = self.graph.get_tensor_by_name("input:0")
-        	output_tensor = self.graph.get_tensor_by_name('output:0')
-			print(sess.run(output,feed_dict={input_x:image}))
+        	input_tensor = sess.graph.get_tensor_by_name("input:0")
+        	output_tensor = sess.graph.get_tensor_by_name('output:0')
+			print(sess.run(output_tensor,feed_dict={input_tensor:image}))
 			
 
 	#使用pbtxt
@@ -418,7 +418,7 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
             print(op.name, op.values())
 
 ##### pb转tflite
-	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install tf_nightly
+	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install --force-reinstall tensorflow-gpu==1.9.0rc1/pip install --force-reinstall tf_nightly_gpu
 	import tensorflow as tf
 	filepath="model.pb"
 	inp=["Placeholder"]
@@ -454,9 +454,7 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	image = image.astype(np.float32)
 	image = np.subtract(image, input_mean)
 	image = np.multiply(image, 1.0 / input_std)
-	print(image.shape,image.dtype)
-	
-	
+	print(image.shape,image.dtype)	
 	
 	input_data = np.array(np.random.random_sample(input_shape), dtype=np.float32)  # 输入随机数
 	
