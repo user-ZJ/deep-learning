@@ -418,7 +418,8 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
             print(op.name, op.values())
 
 ##### pb转tflite
-	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install --force-reinstall tensorflow-gpu==1.9.0rc1/pip install --force-reinstall tf_nightly_gpu
+	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install --force-reinstall tensorflow-gpu==1.9.0rc1/pip install --force-reinstall tf_nightly_gpu  
+	# tflite仅支持ADD, AVERAGE_POOL_2D, CONV_2D, DEPTHWISE_CONV_2D, DIV, FLOOR, MUL, RESHAPE, SOFTMAX运算，如果包含其他运算，模型会转换失败  
 	import tensorflow as tf
 	filepath="model.pb"
 	inp=["Placeholder"]
