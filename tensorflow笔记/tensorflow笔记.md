@@ -68,6 +68,7 @@ with tf.Session() as sess:
 	tf.Graph.as_default()	将某图设置为默认图，并返回一个上下文管理器。如果不显式添加一个默认图，系统会自动设置一个全局的默认图。所设置的默认图，在模块范围内定义的节点都将默认加入默认图中  
 	tf.Graph.device(device_name_or_function)	定义运行图所使用的设备，并返回一个上下文管理器  
 	tf.Graph.name_scope(name)	为节点创建层次化的名称，并返回一个上下文管理器  
+    reset_default_graph  移除之前的权重和偏置项  
 	**tf.get_default_graph().as_graph_def().node：获取图中所有节点**
  
 	tf.Operation 类代表图中的一个节点，用于计算张量数据，该类型由节点构造器（如 tf.matmul()或者 Graph.create_op()）产生  
@@ -358,118 +359,118 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 			
 
 	#使用pbtxt
-	output_graph_def  = tf.Graph()
-	with open('tfmodel/train.pbtxt', 'r') as f:
-    	graph_str = f.read()
-	text_format.Parse(graph_str, output_graph_def)
-	tf.import_graph_def(output_graph_def)
+	output_graph_def  = tf.Graph()  
+	with open('tfmodel/train.pbtxt', 'r') as f:  
+    	graph_str = f.read()  
+	text_format.Parse(graph_str, output_graph_def)  
+	tf.import_graph_def(output_graph_def)  
 	
 
 #### 相互转换
 ##### pb转pbtxt
 
-	def convert_pb_to_pbtxt(filename):
-		with gfile.FastGFile(filename,'rb') as f:
-    		graph_def = tf.GraphDef()
-    		graph_def.ParseFromString(f.read())
-    		tf.import_graph_def(graph_def, name='')
-    		tf.train.write_graph(graph_def, './', 'protobuf.pbtxt', as_text=True)
+	def convert_pb_to_pbtxt(filename):  
+		with gfile.FastGFile(filename,'rb') as f:  
+    		graph_def = tf.GraphDef()  
+    		graph_def.ParseFromString(f.read())  
+    		tf.import_graph_def(graph_def, name='')  
+    		tf.train.write_graph(graph_def, './', 'protobuf.pbtxt', as_text=True)  
 
 ##### pbtxt转pb
 
 	def convert_pbtxt_to_pb(filename):
 		"""Returns a `tf.GraphDef` proto representing the data in the given pbtxt file.
-		Args:
+		Args:  
     	filename: The name of a file containing a GraphDef pbtxt (text-formatted
-	      `tf.GraphDef` protocol buffer data)."""
-		with tf.gfile.FastGFile(filename, 'r') as f:
-    	graph_def = tf.GraphDef()
-    	file_content = f.read() 
-    	# Merges the human-readable string in `file_content` into `graph_def`.
-    	text_format.Merge(file_content, graph_def)
-    	tf.train.write_graph( graph_def , './' , 'protobuf.pb' , as_text = False )
+	      `tf.GraphDef` protocol buffer data)."""  
+		with tf.gfile.FastGFile(filename, 'r') as f:  
+    	graph_def = tf.GraphDef()  
+    	file_content = f.read()   
+    	# Merges the human-readable string in `file_content` into `graph_def`.  
+    	text_format.Merge(file_content, graph_def)  
+    	tf.train.write_graph( graph_def , './' , 'protobuf.pb' , as_text = False )  
 
 ##### ckpt转pb
 
-	def freeze_graph(ckptmodel_folder):
-	    checkpoint = tf.train.get_checkpoint_state(ckptmodel_folder)  # 检查目录下ckpt文件状态是否可用
-	    input_checkpoint = checkpoint.model_checkpoint_path  # 得ckpt文件路径
-	    output_graph = 'model-convert/ckptmodel.pb'
-	    output_node_names = "prediction"  # 原模型输出操作节点的名字
-	    # 得到图、clear_devices ：Whether or not to clear the device field for an `Operation` or `Tensor` during import.
-	    saver = tf.train.import_meta_graph(input_checkpoint + '.meta',
-	                                       clear_devices=True)
-	    graph = tf.get_default_graph()  # 获得默认的图
-	    input_graph_def = graph.as_graph_def()  # 返回一个序列化的图代表当前的图
-	    with tf.Session() as sess:
-	        saver.restore(sess, input_checkpoint)  # 恢复图并得到数据
-	        # 测试读出来的模型是否正确，注意这里传入的是输出 和输入 节点的 tensor的名字，不是操作节点的名字
-	        #print("predictions : ", sess.run("prediction:0", feed_dict={"input_holder:0": [10.0]}))
-	        output_graph_def = tf.graph_util.convert_variables_to_constants(  # 模型持久化，将变量值固定
-	            sess,
-	            input_graph_def,
-	            output_node_names.split(",")  # 如果有多个输出节点，以逗号隔开
-	        )
-	        with tf.gfile.GFile(output_graph, "wb") as f:  # 保存模型
-	            f.write(output_graph_def.SerializeToString())  # 序列化输出
-        	print("%d ops in the final graph." % len(output_graph_def.node))  # 得到当前图有几个操作节点
+	def freeze_graph(ckptmodel_folder):  
+	    checkpoint = tf.train.get_checkpoint_state(ckptmodel_folder)  # 检查目录下ckpt文件状态是否可用  
+	    input_checkpoint = checkpoint.model_checkpoint_path  # 得ckpt文件路径  
+	    output_graph = 'model-convert/ckptmodel.pb'  
+	    output_node_names = "prediction"  # 原模型输出操作节点的名字  
+	    # 得到图、clear_devices ：Whether or not to clear the device field for an `Operation` or `Tensor` during import.  
+	    saver = tf.train.import_meta_graph(input_checkpoint + '.meta',  
+	                                       clear_devices=True)  
+	    graph = tf.get_default_graph()  # 获得默认的图  
+	    input_graph_def = graph.as_graph_def()  # 返回一个序列化的图代表当前的图  
+	    with tf.Session() as sess:  
+	        saver.restore(sess, input_checkpoint)  # 恢复图并得到数据  
+	        # 测试读出来的模型是否正确，注意这里传入的是输出 和输入 节点的 tensor的名字，不是操作节点的名字  
+	        #print("predictions : ", sess.run("prediction:0", feed_dict={"input_holder:0": [10.0]}))  
+	        output_graph_def = tf.graph_util.convert_variables_to_constants(  # 模型持久化，将变量值固定  
+	            sess,  
+	            input_graph_def,  
+	            output_node_names.split(",")  # 如果有多个输出节点，以逗号隔开  
+	        )  
+	        with tf.gfile.GFile(output_graph, "wb") as f:  # 保存模型  
+	            f.write(output_graph_def.SerializeToString())  # 序列化输出  
+        	print("%d ops in the final graph." % len(output_graph_def.node))  # 得到当前图有几个操作节点  
 
- 	      for op in graph.get_operations():
-            print(op.name, op.values())
+ 	      for op in graph.get_operations():  
+            print(op.name, op.values())  
 
 ##### pb转tflite
 	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install --force-reinstall tensorflow-gpu==1.9.0rc1/pip install --force-reinstall tf_nightly_gpu  
-	# tflite仅支持ADD, AVERAGE_POOL_2D, CONV_2D, DEPTHWISE_CONV_2D, DIV, FLOOR, MUL, RESHAPE, SOFTMAX运算，如果包含其他运算，模型会转换失败  
-	import tensorflow as tf
-	filepath="model.pb"
-	inp=["Placeholder"]
-	opt=["MobilenetV1/logits/pool/AvgPool"]
-	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt)
-	tflite_model=converter.convert()
-	f = open("model.tflite", "wb")
-	f.write(tflite_model)
+	# tflite仅支持ADD, AVERAGE_POOL_2D, CONV_2D, DEPTHWISE_CONV_2D, DIV, FLOOR, MUL, RESHAPE, SOFTMAX运算，如果包含其他运算，模型会转换失败    
+	import tensorflow as tf  
+	filepath="model.pb"  
+	inp=["Placeholder"]  
+	opt=["MobilenetV1/logits/pool/AvgPool"]  
+	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt)  
+	tflite_model=converter.convert()  
+	f = open("model.tflite", "wb")  
+	f.write(tflite_model)  
 
 ##### tflite测试
-	import numpy as np
-	import tensorflow as tf
-	import cv2 as cv
+	import numpy as np  
+	import tensorflow as tf  
+	import cv2 as cv  
 	
-	input_mean = 127.5
-	input_std = 127.5
+	input_mean = 127.5  
+	input_std = 127.5  
 	
-	# Load TFLite model and allocate tensors.
-	tflite_model = tf.contrib.lite.Interpreter(model_path="model.tflite")
-	tflite_model.allocate_tensors()
+	# Load TFLite model and allocate tensors.  
+	tflite_model = tf.contrib.lite.Interpreter(model_path="model.tflite")  
+	tflite_model.allocate_tensors()  
 	
-	# Get input and output tensors.
-	input_details = tflite_model.get_input_details()
-	output_details = tflite_model.get_output_details()
+	# Get input and output tensors.  
+	input_details = tflite_model.get_input_details()  
+	output_details = tflite_model.get_output_details()  
 	
-	# Test model on random input data.
-	input_shape = input_details[0]['shape']
+	# Test model on random input data.  
+	input_shape = input_details[0]['shape']  
 	
-	image = cv.imread("1.jpg")
-	image = cv.cvtColor(image,cv.COLOR_BGR2RGB)
-	image = cv.resize(image,(224,224))
-	image = np.expand_dims(image,0)
-	image = image.astype(np.float32)
-	image = np.subtract(image, input_mean)
-	image = np.multiply(image, 1.0 / input_std)
-	print(image.shape,image.dtype)	
+	image = cv.imread("1.jpg")  
+	image = cv.cvtColor(image,cv.COLOR_BGR2RGB)  
+	image = cv.resize(image,(224,224))  
+	image = np.expand_dims(image,0)  
+	image = image.astype(np.float32)  
+	image = np.subtract(image, input_mean)  
+	image = np.multiply(image, 1.0 / input_std)  
+	print(image.shape,image.dtype)	 
 	
-	input_data = np.array(np.random.random_sample(input_shape), dtype=np.float32)  # 输入随机数
+	input_data = np.array(np.random.random_sample(input_shape), dtype=np.float32)  # 输入随机数  
 	
-	input_data = np.subtract(input_data, input_mean)
-	input_data = np.multiply(input_data, 1.0 / input_std)
-	print(input_data.shape)
+	input_data = np.subtract(input_data, input_mean)  
+	input_data = np.multiply(input_data, 1.0 / input_std)  
+	print(input_data.shape)  
 	
-	tflite_model.set_tensor(input_details[0]['index'], image)
-	# tflite_model.set_tensor(input_details[0]['index'], input_data)
+	tflite_model.set_tensor(input_details[0]['index'], image)  
+	# tflite_model.set_tensor(input_details[0]['index'], input_data)  
 	
-	tflite_model.invoke()
-	output_data = tflite_model.get_tensor(output_details[0]['index'])
-	print("out_class")
-	print(output_data)
+	tflite_model.invoke()  
+	output_data = tflite_model.get_tensor(output_details[0]['index'])  
+	print("out_class")  
+	print(output_data)  
 
 
 ### 队列和线程
@@ -480,38 +481,38 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 **FIFOQueue**  
 FIFOQueue 创建一个先入先出队列。在训练一些语音、文字样本时，使用循环神经网络的网络结构，希望读入的训练样本是有序的，就要用 FIFOQueue。   
 
-	import tensorflow as tf  
+	import tensorflow as tf   
 
-	# 创建一个先入先出队列,初始化队列插入0.1、0.2、0.3三个数字 
-	q = tf.FIFOQueue(3, "float")  
+	# 创建一个先入先出队列,初始化队列插入0.1、0.2、0.3三个数字   
+	q = tf.FIFOQueue(3, "float")    
 	init = q.enqueue_many(([0.1, 0.2, 0.3],))  
-	# 定义出队、+1、入队操作
-	x = q.dequeue()
+	# 定义出队、+1、入队操作  
+	x = q.dequeue()  
 	y = x + 1  
 	q_inc = q.enqueue([y])  
 	with tf.Session() as sess:  
 		sess.run(init)  
 		quelen =  sess.run(q.size())  
 		for i in range(2):  
-			sess.run(q_inc) # 执行2次操作，队列中的值变为0.3,1.1,1.2
+			sess.run(q_inc) # 执行2次操作，队列中的值变为0.3,1.1,1.2  
 
 		quelen =  sess.run(q.size())  
-		for i in range(quelen):  
-    		print (sess.run(q.dequeue())) # 输出队列的值  
+		for i in range(quelen):    
+    		print (sess.run(q.dequeue())) # 输出队列的值    
 
 **RandomShuffleQueue**  
 RandomShuffleQueue 创建一个随机队列，在出队列时，是以随机的顺序产生元素的。在训练一些图像样本时，使用CNN的网络结构，希望可以无序地读入训练样本，就要用 RandomShuffleQueue，每次随机产生一个训练样本。  
 RandomShuffleQueue 在 TensorFlow 使用异步计算时非常重要。因为 TensorFlow 的会话是支持多线程的，我们可以在主线程里执行训练操作，使用 RandomShuffleQueue 作为训练输入，开多个线程来准备训练样本，将样本压入队列后，主线程会从队列中每次取出 mini-batch 的样本进行训练。  
 
-	import tensorflow as tf
+	import tensorflow as tf  
 
-	# 创建一个随机队列，队列最大长度为10，出队后最小长度为2
-	q = tf.RandomShuffleQueue(capacity=10, min_after_dequeue=2, dtypes="float")
-	sess = tf.Session()
-	for i in range(0, 10): #10次入队
-		sess.run(q.enqueue(i))
+	# 创建一个随机队列，队列最大长度为10，出队后最小长度为2  
+	q = tf.RandomShuffleQueue(capacity=10, min_after_dequeue=2, dtypes="float")  
+	sess = tf.Session()  
+	for i in range(0, 10): #10次入队  
+		sess.run(q.enqueue(i))  
 
-	for i in range(0, 8): # 8次出队
+	for i in range(0, 8): # 8次出队  
 		print(sess.run(q.dequeue()))  
 
 当：  
@@ -519,37 +520,37 @@ RandomShuffleQueue 在 TensorFlow 使用异步计算时非常重要。因为 Ten
 队列长度等于最大值，执行入队操作。
 程序会发生阻断，卡住不动，如：修改入队次数为12次或修改出队次数为10次，程序会卡住，只有队列满足要求后，才能继续执行。可以通过设置会话在运行时的等待时间来解除阻断：  
 
-	import tensorflow as tf
+	import tensorflow as tf  
 
-	# 创建一个随机队列，队列最大长度为10，出队后最小长度为2
-	q = tf.RandomShuffleQueue(capacity=10, min_after_dequeue=2, dtypes="float")
-	run_options = tf.RunOptions(timeout_in_ms = 10000)  # 等待10秒
-	sess = tf.Session()
-	for i in range(0, 12): #12次入队,会产生阻塞
-	  try:
-	    sess.run(q.enqueue(i),options=run_options)
-	  except tf.errors.DeadlineExceededError:
-	    print('out of range')
+	# 创建一个随机队列，队列最大长度为10，出队后最小长度为2  
+	q = tf.RandomShuffleQueue(capacity=10, min_after_dequeue=2, dtypes="float")  
+	run_options = tf.RunOptions(timeout_in_ms = 10000)  # 等待10秒  
+	sess = tf.Session()  
+	for i in range(0, 12): #12次入队,会产生阻塞  
+	  try:  
+	    sess.run(q.enqueue(i),options=run_options)  
+	  except tf.errors.DeadlineExceededError:  
+	    print('out of range')  
 
-	for i in range(0, 8): # 8次出队
-	  print(sess.run(q.dequeue()))
+	for i in range(0, 8): # 8次出队  
+	  print(sess.run(q.dequeue()))  
 
 **队列管理器QueueRunner**  
 
 	# 创建一个含有队列的图
-	q = tf.FIFOQueue(1000, "float")
-	counter = tf.Variable(0.0)    # 计数器
-	increment_op = tf.assign_add(counter, tf.constant(1.0))    # 操作：给计数器加1
-	enqueue_op = q.enqueue([counter]) # 操作：计数器值加入队列
-	# 创建一个队列管理器 QueueRunner，用这两个操作向队列 q 中添加元素。
-	qr = tf.train.QueueRunner(q, enqueue_ops=[increment_op, enqueue_op] * 1)
-	#主线程
-	with tf.Session() as sess:
-	  sess.run(tf.global_variables_initializer())
-	  enqueue_threads = qr.create_threads(sess, start=True)  # 启动入队线程
-	  #主线程
-	  for i in range(10):
-    	print (sess.run(q.dequeue()))
+	q = tf.FIFOQueue(1000, "float")  
+	counter = tf.Variable(0.0)    # 计数器  
+	increment_op = tf.assign_add(counter, tf.constant(1.0))    # 操作：给计数器加1  
+	enqueue_op = q.enqueue([counter]) # 操作：计数器值加入队列  
+	# 创建一个队列管理器 QueueRunner，用这两个操作向队列 q 中添加元素。  
+	qr = tf.train.QueueRunner(q, enqueue_ops=[increment_op, enqueue_op] * 1)  
+	#主线程  
+	with tf.Session() as sess:  
+	  sess.run(tf.global_variables_initializer())  
+	  enqueue_threads = qr.create_threads(sess, start=True)  # 启动入队线程  
+	  #主线程  
+	  for i in range(10):  
+    	print (sess.run(q.dequeue()))  
 
 
 以上程序，输出不是连续的自然数，且线程被阻断（因为加1操作和入队操作不同步，可能加1操作执行了很多次之后，才会进行一次入队操作）。  
@@ -558,38 +559,38 @@ QueueRunner 有一个问题就是：入队线程自顾自地执行，在需要�
 **线程和协调器(coordinator)**  
 使用协调器（coordinator）来管理线程;所有队列管理器被默认加在图的 tf.GraphKeys.QUEUE_RUNNERS 集合中。    
 
-	# 创建一个含有队列的图
-	q = tf.FIFOQueue(1000, "float")
-	counter = tf.Variable(0.0)    # 计数器
-	increment_op = tf.assign_add(counter, tf.constant(1.0))    # 操作：给计数器加1
-	enqueue_op = q.enqueue([counter]) # 操作：计数器值加入队列
-	# 创建一个队列管理器 QueueRunner，用这两个操作向队列 q 中添加元素。
-	qr = tf.train.QueueRunner(q, enqueue_ops=[increment_op, enqueue_op] * 1)
+	# 创建一个含有队列的图  
+	q = tf.FIFOQueue(1000, "float")  
+	counter = tf.Variable(0.0)    # 计数器  
+	increment_op = tf.assign_add(counter, tf.constant(1.0))    # 操作：给计数器加1  
+	enqueue_op = q.enqueue([counter]) # 操作：计数器值加入队列  
+	# 创建一个队列管理器 QueueRunner，用这两个操作向队列 q 中添加元素。  
+	qr = tf.train.QueueRunner(q, enqueue_ops=[increment_op, enqueue_op] * 1)  
 	
-	# 主线程
-	sess = tf.Session()
-	sess.run(tf.global_variables_initializer())
-	# Coordinator：协调器，协调线程间的关系可以视为一种信号量，用来做同步
-	coord = tf.train.Coordinator()
-	# 启动入队线程，协调器是线程的参数
-	enqueue_threads = qr.create_threads(sess, coord = coord,start=True)
+	# 主线程  
+	sess = tf.Session()  
+	sess.run(tf.global_variables_initializer())  
+	# Coordinator：协调器，协调线程间的关系可以视为一种信号量，用来做同步  
+	coord = tf.train.Coordinator()  
+	# 启动入队线程，协调器是线程的参数  
+	enqueue_threads = qr.create_threads(sess, coord = coord,start=True)  
 	
 	# 使用方式1
 	# 主线程
-	for i in range(0, 10):
-	  print(sess.run(q.dequeue()))
-	# coord.request_stop()# 通知其他线程关闭
-	# coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回
+	for i in range(0, 10):  
+	  print(sess.run(q.dequeue()))  
+	# coord.request_stop()# 通知其他线程关闭  
+	# coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回  
 	
-	# 使用方式2
-	coord.request_stop()# 通知其他线程关闭
-	# 主线程
-	for i in range(0, 10):
-	  try:
-	    print(sess.run(q.dequeue()))
-	  except tf.errors.OutOfRangeError:
-	    break
-	coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回
+	# 使用方式2  
+	coord.request_stop()# 通知其他线程关闭  
+	# 主线程  
+	for i in range(0, 10):  
+	  try:  
+	    print(sess.run(q.dequeue()))  
+	  except tf.errors.OutOfRangeError:  
+	    break  
+	coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回  
 
 ### 数据加载
 TensorFlow 作为符号编程框架，需要先构建数据流图，再读取数据，随后进行模型训练。  
@@ -600,9 +601,9 @@ TensorFlow 官方网站给出了以下读取数据3种方法：
 
 **预加载数据**  
 
-	x1 = tf.constant([2, 3, 4])  
-	x2 = tf.constant([4, 0, 1])  
-	y = tf.add(x1, x2)
+	x1 = tf.constant([2, 3, 4])    
+	x2 = tf.constant([4, 0, 1])    
+	y = tf.add(x1, x2)  
 
 **填充数据**  
 
@@ -616,7 +617,7 @@ TensorFlow 官方网站给出了以下读取数据3种方法：
 	li2 = [4, 0, 1]  
 	# 打开一个会话，将数据填充给后端 
 	with tf.Session() as sess:  
-	  print sess.run(b, feed_dict={a1: li1, a2: li2})
+	  print sess.run(b, feed_dict={a1: li1, a2: li2})  
 
 **文件读取数据**  
 
@@ -742,17 +743,17 @@ log_device_placement：tf.ConfigProto()中参数log_device_placement = True ,可
 allow_soft_placement：如果手动设置的设备不存在或者不可用，允许tf自动选择一个存在并且可用的设备来运行操作  
 限制GPU资源使用：  
 a. 动态申请显存  
-	config = tf.ConfigProto()
-	config.gpu_options.allow_growth = True
-	session = tf.Session(config=config)
+	config = tf.ConfigProto()  
+	config.gpu_options.allow_growth = True  
+	session = tf.Session(config=config)  
 b. 限制GPU使用率  
-	config = tf.ConfigProto()
-	config.gpu_options.per_process_gpu_memory_fraction = 0.4  #占用40%显存
-	session = tf.Session(config=config)
-	或者
-	gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
-	config=tf.ConfigProto(gpu_options=gpu_options)
-	session = tf.Session(config=config)
+	config = tf.ConfigProto()  
+	config.gpu_options.per_process_gpu_memory_fraction = 0.4  #占用40%显存  
+	session = tf.Session(config=config)  
+	或者  
+	gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.4)  
+	config=tf.ConfigProto(gpu_options=gpu_options)  
+	session = tf.Session(config=config)  
 
 
 
