@@ -51,12 +51,12 @@ https://blog.csdn.net/lovelyaiq/article/details/78716325
 input1 = tf.constant(3.0)  
 6. placeholder  
 TensorFlow 还提供了填充机制，可以在构建图时使用 tf.placeholder()临时替代任意操作的张量，在调用 Session 对象的 run()方法去执行图时，使用填充数据作为调用的参数，调用结束后，填充数据就消失。 
-`input1 = tf.placeholder(tf.float32)
-input2 = tf.placeholder(tf.float32)
-output = tf.multiply(input1, input2)
-with tf.Session() as sess:
-  print sess.run([output], feed_dict={input1:[7.], input2:[2.]})
-输出 [array([ 14.], dtype=float32)]`   
+	input1 = tf.placeholder(tf.float32)
+	input2 = tf.placeholder(tf.float32)
+	output = tf.multiply(input1, input2)
+	with tf.Session() as sess:
+	  print sess.run([output], feed_dict={input1:[7.], input2:[2.]})
+	输出 [array([ 14.], dtype=float32)]  
 7. 内核：  
 我们知道操作（operation）是对抽象操作（如 matmul 或者 add）的一个统称，而内核（kernel）则是能够运行在特定设备（如 CPU、GPU）上的一种对操作的实现。因此，同一个操作可能会对应多个内核。  
 当自定义一个操作时，需要把新操作和内核通过注册的方式添加到系统中。  
@@ -68,7 +68,7 @@ with tf.Session() as sess:
 	tf.Graph.as_default()	将某图设置为默认图，并返回一个上下文管理器。如果不显式添加一个默认图，系统会自动设置一个全局的默认图。所设置的默认图，在模块范围内定义的节点都将默认加入默认图中  
 	tf.Graph.device(device_name_or_function)	定义运行图所使用的设备，并返回一个上下文管理器  
 	tf.Graph.name_scope(name)	为节点创建层次化的名称，并返回一个上下文管理器  
-    reset_default_graph  移除之前的权重和偏置项  
+    tf.reset_default_graph  移除之前的权重和偏置项  
 	**tf.get_default_graph().as_graph_def().node：获取图中所有节点**
  
 	tf.Operation 类代表图中的一个节点，用于计算张量数据，该类型由节点构造器（如 tf.matmul()或者 Graph.create_op()）产生  
@@ -555,6 +555,7 @@ RandomShuffleQueue 在 TensorFlow 使用异步计算时非常重要。因为 Ten
 
 以上程序，输出不是连续的自然数，且线程被阻断（因为加1操作和入队操作不同步，可能加1操作执行了很多次之后，才会进行一次入队操作）。  
 QueueRunner 有一个问题就是：入队线程自顾自地执行，在需要的出队操作完成之后，程序没法结束。  
+使用 tf.train.Coordinator 来实现线程间的同步，终止其他线程，可以解决以上问题  
 
 **线程和协调器(coordinator)**  
 使用协调器（coordinator）来管理线程;所有队列管理器被默认加在图的 tf.GraphKeys.QUEUE_RUNNERS 集合中。    
@@ -581,8 +582,9 @@ QueueRunner 有一个问题就是：入队线程自顾自地执行，在需要�
 	  print(sess.run(q.dequeue()))  
 	# coord.request_stop()# 通知其他线程关闭  
 	# coord.join(enqueue_threads) # join操作等待其他线程结束，其他所有线程关闭之后，这一函数才能返回  
+	# 方式1在第二次执行会报tf.errors.OutOfRange错误  
 	
-	# 使用方式2  
+	# 使用方式2(推荐使用)  
 	coord.request_stop()# 通知其他线程关闭  
 	# 主线程  
 	for i in range(0, 10):  
@@ -628,13 +630,53 @@ TensorFlow 官方网站给出了以下读取数据3种方法：
 1. 把样本数据写入 TFRecords 二进制文件；  
 TFRecords 是一种二进制文件，能更好地利用内存，更方便地复制和移动，并且不需要单独的标记文件。具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/convert_to_records.py  
 将数据填入到 tf.train.Example 的协议缓冲区（protocol buffer）中，将协议缓冲区序列化为一个字符串，通过 tf.python_io.TFRecordWriter 写入 TFRecords 文件。  
+	    writer = tf.python_io.TFRecordWriter(output_file)
+	    filename = filenames[i]
+	    label = int(labels[i])
+	    image_buffer, height, width = _process_image(filename, coder)
+	    example = _convert_to_example(filename, image_buffer, label,
+	      height, width)
+	    writer.write(example.SerializeToString())
+	    
+	    def _convert_to_example(filename, image_buffer, label, height, width):
+	    	example = tf.train.Example(features=tf.train.Features(feature={
+	    		'image/class/label': _int64_feature(label),
+	    		'image/filename': _bytes_feature(str.encode(os.path.basename(filename))),
+	    		'image/encoded': _bytes_feature(image_buffer),
+	    		'image/height': _int64_feature(height),
+	    		'image/width': _int64_feature(width)
+	    	}))
+	    	return example
+	    
+	    def _int64_feature(value):
+	      return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+	    
+	    def _bytes_feature(value):
+	      return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
 
 2. 从队列中读取  
 （1）创建张量，从二进制文件读取一个样本；  
 （2）创建张量，从二进制文件随机读取一个 mini-batch；  
 （3）把每一批张量传入网络作为输入节点。  
 具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/fully_connected_reader.py  
-首先我们定义从文件中读取并解析一个样本;接下来使用 tf.train.shuffle_batch 将前面生成的样本随机化，获得一个最小批次的张量;最后，我们把生成的 batch 张量作为网络的输入，进行训练。  
+首先我们定义从文件中读取并解析一个样本;接下来使用 tf.train.shuffle_batch 将前面生成的样本随机化，获得一个最小批次的张量;最后，我们把生成的 batch 张量作为网络的输入，进行训练。
+  
+	    def parse_example_proto(example_serialized):
+	    	feature = {
+	    		'image/class/label': tf.FixedLenFeature([],dtype=tf.int64,default_value=-1),
+	    		'image/filename': tf.FixedLenFeature([],dtype=tf.string),
+	    		'image/encoded': tf.FixedLenFeature([],dtype=tf.string),
+	    		'image/height': tf.FixedLenFeature([],dtype=tf.int64),
+	    		'image/width': tf.FixedLenFeature([],dtype=tf.int64)
+	    	}
+	    	features = tf.parse_single_example(example_serialized, feature)
+	    	label = tf.cast(features['image/class/label'], dtype=tf.int32)
+	    	return features['image/encoded'], label, features['image/filename']
+	    reader = tf.TFRecordReader()
+	    filename_queue = tf.train.string_input_producer(['test.tfrecord'],)
+	    _, example_serialized = reader.read(filename_queue)
+	    image_buffer, label_index, fname = parse_example_proto(example_serialized)
 
 ## tensorflow源码
 
