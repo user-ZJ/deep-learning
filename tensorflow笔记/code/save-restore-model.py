@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+from google.protobuf import text_format
 from tensorflow.examples.tutorials.mnist import input_data
 
 # 定义权重函数
@@ -19,14 +20,12 @@ w_o = init_weights([625, 10])
 # 定义模型
 def model(X, w_h, w_h2, w_o, p_keep_input, p_keep_hidden):
   # 第一个全连接层
-  X = tf.nn.dropout(X, p_keep_input)
+  #X = tf.nn.dropout(X, p_keep_input)
   h = tf.nn.relu(tf.matmul(X, w_h))
-
-  h = tf.nn.dropout(h, p_keep_hidden)
+  #h = tf.nn.dropout(h, p_keep_hidden)
   # 第二个全连接层
   h2 = tf.nn.relu(tf.matmul(h, w_h2))
-  h2 = tf.nn.dropout(h2, p_keep_hidden)
-
+  #h2 = tf.nn.dropout(h2, p_keep_hidden)
   return tf.matmul(h2, w_o,name="prediction") #输出预测值
 
 # 生成网络模型，得到预测值
@@ -53,17 +52,29 @@ non_storable_variable = tf.Variable(777)
 
 with tf.Session() as sess:
   tf.initialize_all_variables().run()
-
   start = global_step.eval() # 得到 global_step 的初始值
   print("Start from:", start)
 
-  #加载模型
+  #加载ckpt模型
   ckpt = tf.train.get_checkpoint_state(ckpt_dir)
   if ckpt and ckpt.model_checkpoint_path:
     print(ckpt.model_checkpoint_path)
     #加载模型参数
     saver.restore(sess, ckpt.model_checkpoint_path)
     # 从这里开始就可以直接使用模型进行预测，或者接着继续训练了
+
+  # 加载pb或pbtxt模型
+  if os.path.exists('tfmodel/train.pb'):
+    with tf.gfile.FastGFile('tfmodel/train.pb','rb') as f:
+      in_graph_def = tf.GraphDef()  # 新建GraphDef文件，用于临时载入模型中图的序列化图形表示
+      in_graph_def.ParseFromString(f.read()) # 读取pb/pbtxt模型文件
+      tf.import_graph_def(in_graph_def, name='') # 将GraphDef导入graph中
+  if os.path.exists('tfmodel/train.pbtxt'):
+    with open('tfmodel/train.pbtxt','rb') as f:
+      in_graph_def = tf.GraphDef()  # 新建GraphDef文件，用于临时载入模型中图的序列化图形表示
+      text_format.Parse(f.read(),in_graph_def) # 读取pb/pbtxt模型文件
+      tf.import_graph_def(in_graph_def, name='') # 将GraphDef导入graph中
+
 
   for i in range(start, 10):
     # 以128作为batch_size
@@ -91,5 +102,5 @@ with tf.Session() as sess:
 
   for op in tf.get_default_graph().get_operations():
     print(op.name, op.values())
-  for v in tf.get_collection(tf.GraphKeys.VARIABLES):
+  for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
     print(v)

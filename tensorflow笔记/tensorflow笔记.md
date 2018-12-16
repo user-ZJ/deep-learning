@@ -224,7 +224,7 @@ class tf.train.RMSPropOptimizer
 save-restore-model.py  
 model-convert.py
 
-**tensorflow模型文件**
+**tensorflow模型文件**  
 checkpoint：该文件是个文本文件，里面记录了保存的最新的checkpoint文件以及其它checkpoint文件列表。在inference时，可以通过修改这个文件，指定使用哪个model  
 model.ckpt.meta：保存的是图结构，meta文件是pb（protocol buffer）格式文件，包含变量、op、集合等  
 model.ckpt.index：string-string不可变表，每个键都是张量的名称，其值是序列化的BundleEntryProto。每个BundleEntryProto描述一个张量的metadata：张量的数据包含在哪个文件，该文件的offset，checksum和一些辅助数据等。  
@@ -247,7 +247,7 @@ saver.save(sess, ckpt_dir + "/model.ckpt", global_step=global_step) # 存储模�
 
 保存步骤为：  
 1. 定义运算过程
-2. 通过 get_default_graph().as_graph_def() 得到当前图的计算节点信息
+2. 通过 get_default_graph().as_graph_def() 得到当前图的序列化图形表示
 3. 通过 graph_util.convert_variables_to_constants 将相关节点的values固定
 4. 通过 tf.gfile.GFile 进行模型持久化
 
@@ -310,7 +310,7 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	saver = tf.train.Saver()
 	with tf.Session() as sess:  
 		ckpt = tf.train.get_checkpoint_state('./model/')
-        saver.restore(sess, 'model/model.ckpt-10') #加载指定模型
+		saver.restore(sess, 'model/model.ckpt-10') #加载指定模型
 		saver.restore(sess, ckpt.model_checkpoint_path) #加载checkpoint中记录的模型 
 
 方法2：不需重新定义网络结构  
@@ -335,13 +335,13 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	with output_graph_def.as_default():
     	# 二进制读取模型文件
     	with tf.gfile.FastGFile(os.path.join(model_dir,model_name),'rb') as f:
-        	# 新建GraphDef文件，用于临时载入模型中的图
-        	graph_def = tf.GraphDef()
-        	# GraphDef加载模型中的图
-        	graph_def.ParseFromString(f.read())
-        	# 在空白图中加载GraphDef中的图
-        	tf.import_graph_def(graph_def,name='')
-		
+			# 新建GraphDef文件，用于临时载入模型中图的序列化图形表示
+			graph_def = tf.GraphDef()
+			# GraphDef加载模型中的图
+			graph_def.ParseFromString(f.read())
+			# 在空白图中加载GraphDef中的图
+			tf.import_graph_def(graph_def,name='')
+			
 		with tf.Session() as sess:
         	# 在图中获取张量需要使用graph.get_tensor_by_name加张量名
         	# 这里的张量可以直接用于session的run方法求值了
@@ -353,13 +353,13 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 			image = cv.resize(image, (224, 224))
 			image = np.expand_dims(image, 0)
 			image = image.astype(np.float32)
-        	input_tensor = sess.graph.get_tensor_by_name("input:0")
-        	output_tensor = sess.graph.get_tensor_by_name('output:0')
+			input_tensor = sess.graph.get_tensor_by_name("input:0")
+			output_tensor = sess.graph.get_tensor_by_name('output:0')
 			print(sess.run(output_tensor,feed_dict={input_tensor:image}))
 			
 
 	#使用pbtxt
-	output_graph_def  = tf.Graph()  
+	output_graph_def  = tf.GraphDef()  
 	with open('tfmodel/train.pbtxt', 'r') as f:  
     	graph_str = f.read()  
 	text_format.Parse(graph_str, output_graph_def)  
@@ -813,7 +813,15 @@ tf.contrib.layers.optimize_loss：Given loss and parameters for optimizer, retur
 slim.learning.train():运行slim.learning.create_train_op创建的对象  
 _, loss_value = sess.run([train_op, total_loss]) :运行tf.contrib.layers.optimize_loss创建的对象  
 
-
+**脚本说明**  
+save-restore-model.py：模型保存和加载文件  
+model-convert.py：模型相互转换文件  
+mqueue.py：队列文件
+scope.py：作用域说明文件  
+session.py：session使用示例文件  
+tensorboard.py：可视化示例文件  
+tfrecord.py：tfrecord保存和读取文件  
+variables.py：变量使用说明文件  
 
 # F&Q
 **tf.image.convert_image_dtype** 

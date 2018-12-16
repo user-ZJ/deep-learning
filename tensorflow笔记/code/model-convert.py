@@ -1,6 +1,7 @@
 from google.protobuf import text_format
 from tensorflow.python.platform import gfile
 import tensorflow as tf
+import os
 
 
 def convert_pb_to_pbtxt(pbfilename,pbtxtfilename):
@@ -48,12 +49,20 @@ def freeze_graph(ckptmodel_folder):
             f.write(output_graph_def.SerializeToString())  # 序列化输出
         print("%d ops in the final graph." % len(output_graph_def.node))  # 得到当前图有几个操作节点
 
-        for op in graph.get_operations():
-            print(op.name, op.values())
+        # for op in graph.get_operations():
+        #     print(op.name, op.values())
 
+def convert_pb_to_tflite(pbfilename,tflitefilename):
+    input_node_names = ["input_holder"]
+    output_node_names = ["prediction"]
+    converter = tf.contrib.lite.TocoConverter.from_frozen_graph(pbfilename, input_node_names, output_node_names)
+    tflite_model = converter.convert()
+    f = open(tflitefilename, "wb")
+    f.write(tflite_model)
 
 freeze_graph('ckpt_dir')
 convert_pb_to_pbtxt('tfmodel/train.pb','model-convert/model.pbtxt')
 convert_pb_to_pbtxt('tfmodel/train_graph.pb','model-convert/model_graph.pbtxt')
 convert_pbtxt_to_pb('tfmodel/train.pbtxt','model-convert/model.pb')
 convert_pbtxt_to_pb('tfmodel/train_graph.pbtxt','model-convert/model_graph.pb')
+convert_pb_to_tflite('tfmodel/train.pb','tflite/train.tflite')
