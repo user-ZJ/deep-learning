@@ -240,7 +240,118 @@ RPN是在CNN训练得到的用于分类任务的feature map基础上，对所有
 **归一化尺度**：输入特征提取网络的大小，在测试时设置，源码中opts.test_scale=600。anchor在这个尺度上设定。这个参数和anchor的相对大小决定了想要检测的目标范围。  
 **网络输入尺度**：输入特征检测网络的大小，在训练时设置，源码中为224\*224。  
 
-## 7. SSD
+## 7. [SSD](https://zhuanlan.zhihu.com/p/33544892)
+全名是Single Shot MultiBox Detector  
+### 网络结构
+![](https://i.imgur.com/dzNRgUR.jpg)  
+### SSD特点
+1. 相比Yolo，SSD采用CNN来直接进行检测，而不是像Yolo那样在全连接层之后做检测  
+2. SSD提取了不同尺度的特征图来做检测，大尺度特征图（较靠前的特征图）可以用来检测小物体，而小尺度特征图（较靠后的特征图）用来检测大物体  
+3. SSD采用了不同尺度和长宽比的先验框（Prior boxes, Default boxes，在Faster R-CNN中叫做锚，Anchors） 
+4. SSD将背景也当做了一个特殊的类别，如果检测目标共有 c 个类别，SSD其实需要预测 c+1 个置信度值，其中第一个置信度指的是不含目标或者属于背景的评分  
+5. 真实预测值其实只是边界框相对于先验框的转换值  
+### SSD中基础概念
+先验框（Default boxes，在Faster R-CNN中叫做锚，Anchors）：feature map的每个小格(cell)上都有一系列固定大小的box，对于每个default box都需要预测c个类别score和4个offset  
+Priorbox：类比于conv2d，为生成default box的option    
+边界框（bounding boxes）/预测框：根据先验框偏移生成的boxs  
+标记框（ground truth）：图片中实际标记的位置和label  
+confidence：类别置信度，每个default box 生成21个类别confidence  
+location：包含4个值 (cx, cy, w, h) ，分别表示box的中心坐标以及宽高  
+feature map cell：指feature map中每一个小格子
+先验框位置用 d=(d^{cx}, d^{cy}, d^w, d^h) 表示  
+边界框用 b=(b^{cx}, b^{cy}, b^w, b^h)表示 
+
+### 先验框生成方式
+SSD网络中选取不同大小的feature map用来检测目标，在feature map上生成固定大小和长宽比的先验框用来检测目标，大的特征图来中先验框用来检测相对较小的目标，而小的特征图中先验框负责检测大目标  
+![](https://i.imgur.com/1vR0I3O.jpg)  
+不同特征图设置的先验框数目不同，同一个特征图上每个单元设置的先验框数目是相同的，这里的数目指的是一个单元的先验框数目
+
+### 特征图选取
+论文中使用的基础网络为VGG16，并对VGG16网络进行改造，将VGG16的全连接层fc6和fc7转换成 3\times3 卷积层 conv6和 1\times1 卷积层conv7，同时将池化层pool5由原来的stride=2的 2\times 2 变成stride=1的 3\times 3，然后移除dropout层和fc8层，并新增一系列卷积层，在检测数据集上做finetuing  
+特征图选取了Conv4_3，Conv7，Conv8_2，Conv9_2，Conv10_2，Conv11_2作为检测所用的特征图，其大小分别是 (38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)  
+其中conv4_3层特征图大小是 38\times38 ，但是该层比较靠前，其norm较大，所以在其后面增加了一个L2 Normalization层，以保证和后面的检测层差异不是很大。
+
+### 先验框尺度确定
+对于先验框的尺度，其遵守一个线性递增规则：随着特征图大小降低，先验框尺度线性增加  
+![](https://i.imgur.com/clgFCu3.png)  
+其中 m 指的特征图个数，但却是 5 ，因为第一层（Conv4_3层）是单独设置的，论文中其先验框的尺度比例一般设置为 s_{min}/2=0.1，尺度为 300\times 0.1=30    
+s_k 表示先验框大小相对于图片的比例，而 s_{min} 和 s_{max} 表示比例的最小值与最大值，paper里面取0.2和0.9  
+其他5个特征图尺度比例为：0.2，0.37，0.54，0.71，0.88，尺度为 60,111, 162,213,264  
+那么各个特征图的先验框尺度为 30,60,111, 162,213,264  
+
+### 先验框长宽比选取
+对于长宽比，一般选取 a_r\in \{1,2,3,\frac{1}{2},\frac{1}{3}\} ，对于特定的长宽比，按如下公式计算先验框的宽度与高度：  
+w^a_{k}=s_k\sqrt{a_r},\space h^a_{k}=s_k/\sqrt{a_r}    
+**注意：这里的s_k指的是先验框实际尺度**
+默认情况下，每个特征图会有一个 a_r=1 且尺度为 s_k 的先验框，除此之外，还会设置一个尺度为 s'_{k}=\sqrt{s_k s_{k+1}} 且 a_r=1 的先验框，这样每个特征图都设置了两个长宽比为1但大小不同的正方形先验框。因此，每个特征图一共有 6 个先验框 \{1,2,3,\frac{1}{2},\frac{1}{3},1'\}      
+**注意：最后一个特征图需要参考一个虚拟 s_{m+1}=300\times105/100=315 来计算 s'_{m}**  
+但在论文中，Conv4_3，Conv10_2和Conv11_2层仅使用4个先验框，它们不使用长宽比为 3,\frac{1}{3} 的先验框。  
+
+### 先验框中心点计算
+每个单元的先验框的中心点分布在各个单元的中心，即   
+(\frac{i+0.5}{|f_k|},\frac{j+0.5}{|f_k|}),  
+i,j\in[0, |f_k|) ，  
+其中 |f_k| 为特征图的大小。 
+
+### 预测过程
+获得原始图片后，使用基础网络对图片特征进行提取，获取不同大小的feature；  
+下面以一个 5\times5 大小的特征图展示检测过程：
+![](https://i.imgur.com/Aj2Ox7t.jpg)  
+检测分为3个步骤：   
+1. 先验框生成：Priorbox是生成先验框option   
+2. 计算预测框location：采用一次 3\times3 卷积来进行完成  
+3. 计算类别置信度：采用一次 3\times3 卷积来进行完成  
+令 n_k 为该特征图所采用的先验框数目，那么类别置信度需要的卷积核数量为 n_k\times c ，而边界框位置需要的卷积核数量为 n_k\times 4 。  
+由于每个先验框都会预测一个边界框，所以SSD300一共可以预测 38\times38\times4+19\times19\times6+10\times10\times6+5\times5\times6+3\times3\times4+1\times1\times4=8732 个边界框，这是一个相当庞大的数字，所以说SSD本质上是密集采样。  
+
+对于每个预测框，首先根据类别置信度确定其类别（置信度最大者）与置信度值，并过滤掉属于背景的预测框。然后根据置信度阈值（如0.5）过滤掉阈值较低的预测框。对于留下的预测框进行解码，根据先验框得到其真实的位置参数（解码后一般还需要做clip，防止预测框位置超出图片）。解码之后，一般需要根据置信度进行降序排列，然后仅保留top-k（如400）个预测框。最后就是进行NMS算法，过滤掉那些重叠度较大的预测框。最后剩余的预测框就是检测结果了。  
+
+### location偏移量计算
+SSD中ground truth和预测框都是计算相对prior box的相对偏移量，优化方向为减小预测框和ground truth偏移量的差值
+
+先验框位置用 d=(d^{cx}, d^{cy}, d^w, d^h) 表示，边界框用 b=(b^{cx}, b^{cy}, b^w, b^h)表示  
+误差计算公式为：  
+l^{cx} = (b^{cx} - d^{cx})/d^w, \space l^{cy} = (b^{cy} - d^{cy})/d^h  
+
+l^{w} = \log(b^{w}/d^w), \space l^{h} = \log(b^{h}/d^h)  
+我们称上面这个过程为边界框的编码（encode）  
+
+预测时，你需要反向这个过程，即进行解码（decode），从预测值偏差值 l 中得到边界框的真实位置 b：  
+b^{cx}=d^w l^{cx} + d^{cx}, \space b^{cy}=d^y l^{cy} + d^{cy}  
+
+b^{w}=d^w \exp(l^{w}), \space b^{h}=d^h \exp(l^{h})  
+
+ground truth和default box之间的偏移误差同样使用上面公式计算。  
+
+### 训练过程
+1. 先验框匹配--确定正/负样本  
+在训练过程中，首先要确定训练图片中的ground truth（真实目标）与哪个先验框来进行匹配，与之匹配的先验框所对应的边界框将负责预测它。  
+先验框与ground truth的匹配原则：
+* a.一个先验框只能匹配一个ground truth，但一个ground truth可以匹配多个先验框  
+* b.对于图片中每个ground truth，找到与其IOU最大的先验框，该先验框与其匹配，这样，可以保证每个ground truth一定与某个先验框匹配。  
+* c.对于剩余的未匹配先验框，若某个ground truth的 \text{IOU} 大于某个阈值（一般是0.5），那么该先验框也与这个ground truth进行匹配  
+* d.如果多个ground truth与某个先验框 \text{IOU} 大于阈值，那么先验框只与IOU最大的那个先验框进行匹配,该条原则要在遵循a、b两条原则之后执行，确保某个ground truth一定有一个先验框与之匹配      
+* 与ground truth匹配的先验框为正样本，反之，若一个先验框没有与任何ground truth进行匹配，那么该先验框只能与背景匹配，就是负样本。
+尽管一个ground truth可以与多个先验框匹配，但是ground truth相对先验框还是太少了，所以负样本相对正样本会很多。为了保证正负样本尽量平衡，SSD采用了hard negative mining，就是对负样本进行抽样，抽样时按照置信度误差（预测背景的置信度越小，误差越大）进行降序排列，选取误差的较大的top-k作为训练的负样本，以保证正负样本比例接近1:3  
+
+2. 损失函数  
+训练样本确定了，然后就是损失函数了。损失函数定义为位置误差（locatization loss， loc）与置信度误差（confidence loss, conf）的加权和  
+L(x, c, l, g) = \frac{1}{N}(L_{conf}(x,c) + \alpha L_{loc}(x,l,g))  
+\alpha 为权重系数 ，通常设置为1  
+N 是先验框的正样本数量  
+x^p_{ij}\in \{ 1,0 \} 为一个指示参数，当 x^p_{ij}= 1 时表示第 i 个先验框与第 j 个ground truth匹配，并且ground truth的类别为 p   
+l 为先验框的所对应边界框的位置预测值  
+g 是ground truth的位置参数  
+
+* 对于位置误差，其采用Smooth L1 loss，定义如下：
+![location loss](https://i.imgur.com/dTrC4PA.jpg)  
+![](https://i.imgur.com/3BFH6Zu.jpg)   
+相当于ground truth于default box偏差 和 predict box于default box偏差 的差值，再求smooth L1。  
+由于 x^p_{ij} 的存在，所以位置误差仅针对正样本进行计算  
+
+* 置信度误差,采用softmax loss  
+![](https://i.imgur.com/14scf3S.jpg)  
+
 
 ## 8. yolo-v1
 YOLO创造性的将物体检测任务直接当作回归问题（regression problem）来处理，将候选区和检测两个阶段合二为一。只需一眼就能知道每张图像中有哪些物体以及物体的位置  
