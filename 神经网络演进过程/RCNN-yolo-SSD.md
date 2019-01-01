@@ -26,6 +26,7 @@ RoIs：其表示所有RoI的N*5的矩阵。其中N表示RoI的数量，第一列
 非极大值抑制（NMS）先计算出每一个bounding box的面积，然后根据score进行排序，把score最大的bounding box作为选定的框，计算其余bounding box与当前最大score与box的IoU，去除IoU大于设定的阈值的bounding box，然后重复上面的过程，直至候选bounding box为空，然后再将score小于一定阈值的bounding box删除得到一类的结果。  
 
 ## 2.RCNN-Faster RCNN
+RCNN-Faster RCNN是基于Region Proposal的算法，是two-stage的，需要先使用启发式方法（selective search）或者CNN网络（RPN）产生Region Proposal，然后再在Region Proposal上做分类与回归  
 从RCNN到fast RCNN，再到本文的faster RCNN，目标检测的四个基本步骤（候选区域生成，特征提取，分类，位置精修）被统一到一个深度网络框架之内。所有计算没有重复，完全在GPU中完成，大大提高了运行速度。   
 ![](https://i.imgur.com/y1OfrSr.png)  
 
@@ -354,16 +355,161 @@ g 是ground truth的位置参数
 
 
 ## 8. yolo-v1
-YOLO创造性的将物体检测任务直接当作回归问题（regression problem）来处理，将候选区和检测两个阶段合二为一。只需一眼就能知道每张图像中有哪些物体以及物体的位置  
-事实上，YOLO也并没有真正的去掉候选区，而是直接将输入图片划分成7x7=49个网格，每个网格预测两个边界框，一共预测49x2=98个边界框。可以近似理解为在输入图片上粗略的选取98个候选区，这98个候选区覆盖了图片的整个区域，进而用回归预测这98个候选框对应的边界框  
+YOLO-V1（You Only Look Once: Unified, Real-Time Object Detection）  
+
+**网络结构**  
+![](https://i.imgur.com/FceuWmv.jpg)   
+网络架构受图像分类模型GoogLeNet的启发。网络有24个卷积层，后面是2个全连接层。我们只使用1×1降维层，后面是3×3卷积层，而不是GoogLeNet使用的Inception模块，（快速YOLO使用具有较少卷积层（9层而不是24层）的神经网络），对于卷积层和全连接层，采用Leaky ReLU激活函数： max(x, 0.1x)，但是最后一层却采用线性激活函数，最终输出是7×7×30的预测张量  
+![](https://i.imgur.com/4KASkwC.jpg)  
+网络的最后输出为 7\times 7\times 30 大小的张量，这个张量所代表的具体含义如图所示，对于每一个单元格，前20个元素是类别概率值，然后2个元素是边界框置信度，两者相乘可以得到类别置信度，最后8个元素是边界框的 (x, y,w,h)   
 
 
+**设计理念**  
+![](https://i.imgur.com/R0jPTT8.jpg)   
+（1）把图像缩放到448X448，（2）在图上运行卷积网络，（3）根据模型的置信度对检测结果进行阈值处理 
+
+S：Yolo的CNN网络将输入的图片分割成 S\times S 网格，然后每个单元格负责去检测那些中心点落在该格子内的目标  
+B：每个单元格会预测 B 个边界框（bounding box）以及边界框的置信度（confidence score）  
+c:置信度（confidence score）,所谓置信度其实包含两个方面，一是这个边界框含有目标的可能性大小，二是这个边界框的准确度。前者记为 Pr(object) (取值为0或者1)，当该边界框是背景时（即不包含目标），此时 Pr(object)=0 。而当该边界框包含目标时， Pr(object)=1 。边界框的准确度可以用预测框与实际框（ground truth）的IOU（intersection over union，交并比）来表征，记为 \text{IOU}^{truth}_{pred} 。因此置信度可以定义为 Pr(object)*\text{IOU}^{truth}_{pred} 。  
+(x, y,w,h) ：(x,y) 是边界框的中心坐标，而 w 和 h 是边界框的宽与高，中心坐标的预测值 (x,y) 是相对于每个单元格左上角坐标点的偏移值，并且单位是相对于单元格大小的；边界框的 w 和 h 预测值是相对于整个图片的宽与高的比例，(x, y,w,h)大小在 [0,1] 范围  
+边界框：(x,y,w,h,c) ，其中前4个表征边界框的大小与位置，而最后一个值是置信度。  
+C：分类数
+Pr(class_{i}|object) ：对于每一个单元格其还要给出预测出 C 个类别概率值，其表征的是由该单元格负责预测的边界框其目标属于各个类别的概率；但是这些概率值其实是在各个边界框置信度下的条件概率，即 Pr(class_{i}|object)；**不管一个单元格预测多少个边界框，其只预测一组类别概率值，这是Yolo算法的一个缺点，在后来的改进版本中，Yolo9000是把类别概率预测值与边界框是绑定在一起的**  
+边界框类别置信度（class-specific confidence scores）: Pr(class_{i}|object)*Pr(object)*\text{IOU}^{truth}_{pred}=Pr(class_{i})*\text{IOU}^{truth}_{pred}   
+边界框类别置信度表征的是该边界框中目标属于各个类别的可能性大小以及边界框匹配目标的好坏，一般会根据类别置信度来过滤网络的预测框  
+
+**训练**  
+在训练之前，先在ImageNet上进行了预训练，其预训练的分类模型采用图8中前20个卷积层，然后添加一个average-pool层和全连接层。预训练之后，在预训练得到的20层卷积层之上加上随机初始化的4个卷积层和2个全连接层。由于检测任务一般需要更高清的图片，所以将网络的输入从224x224增加到了448x448。整个网络的流程如下图所示：  
+![](https://i.imgur.com/v6mtb4N.jpg)  
+
+> **误差函数计算:**  
+> Yolo算法将目标检测看成回归问题，所以采用的是均方差损失函数。但是对不同的部分采用了不同的权重值。  
+> 首先区分定位误差和分类误差。对于定位误差，即边界框坐标预测误差，采用较大的权重 \lambda _{coord}=5 。然后其区分不包含目标的边界框与含有目标的边界框的置信度，对于前者，采用较小的权重值 \lambda _{noobj}=0.5 。其它权重值均设为1。然后采用均方误差，其同等对待大小不同的边界框，但是实际上较小的边界框的坐标误差应该要比较大的边界框要更敏感。为了保证这一点，将网络的边界框的宽与高预测改为对其平方根的预测，即预测值变为 (x,y,\sqrt{w}, \sqrt{h}) 。  
+>YOLO为每个网格单元预测多个边界框。在训练时，每个目标我们只需要一个边界框预测器来负责。若某预测器的预测值与目标的实际值的IOU值最高，则这个预测器被指定为“负责”预测该目标。这导致边界框预测器的专业化。每个预测器可以更好地预测特定大小，方向角，或目标的类别，从而改善整体召回率。但如果一个单元格内存在多个目标怎么办，其实这时候Yolo算法就只能选择其中一个来训练，这也是Yolo算法的缺点之一。  
+> 对于不存在对应目标的边界框，其误差项就是只有置信度，坐标项误差是没法计算的。而只有当一个单元格内确实存在目标时，才计算分类误差项，否则该项也是无法计算的。  
+> 综上讨论，最终的损失函数计算如下：  
+> ![](https://i.imgur.com/9YRbUIv.jpg)  
+> 1^{obj}_{ij} 指的是第 i 个单元格存在目标，且该单元格中的第 j 个边界框负责预测该目标  
+> 1^{obj}_{i} 指的是第 i 个单元格存在目标  
+> 置信度的target值 C_i ，如果是不存在目标，此时由于 Pr(object)=0，那么 C_i=0 。如果存在目标， Pr(object)=1 ，此时需要确定 \text{IOU}^{truth}_{pred} ，当然你希望最好的话，可以将IOU取1，这样 C_i=1 ，但是在YOLO实现中，使用了一个控制参数rescore（默认为1），当其为1时，IOU不是设置为1，而就是计算truth和pred之间的真实IOU。不过很多复现YOLO的项目还是取 C_i=1   
+
+**网络预测**  
+对于一张输入图片。根据前面的分析，最终的网络输出是 7\times 7 \times 30 ，但是我们可以将其分割成三个部分：类别概率部分为 [7, 7, 20] ，置信度部分为 [7,7,2] ，而边界框部分为 [7,7,2,4] （对于这部分不要忘记根据原始图片计算出其真实值）。然后将前两项相乘（矩阵 [7, 7, 20] 乘以 [7,7,2] 可以各补一个维度来完成 [7,7,1,20]\times [7,7,2,1] ）可以得到类别置信度值为 [7, 7,2,20] ，这里总共预测了 7*7*2=98 个边界框  
+
+网格设计强化了边界框预测中的空间多样性。通常一个目标落在哪一个网格单元中是很明显的，而网络只能为每个目标预测一个边界框。然而，一些大的目标或接近多个网格单元的边界的目标能被多个网格单元定位。非极大值抑制可以用来修正这些多重检测。
+
+**优缺点**  
+缺点：    
+1）与fast RCNN相比，YOLO的误差分析显示YOLO产生大量的定位误差。2）与基于候选区域的方法相比，YOLO具有相对较低的召回率；3）如果两个小目标同时落入一个格子中，模型也只能预测一个；4）  
+优点：  
+1）YOLO简化了整个目标检测流程，速度的提升也很大（2）YOLO采用全图信息来进行预测。与滑动窗口方法和region proposal-based方法不同，YOLO在训练和预测过程中可以利用全图信息。Fast R-CNN检测方法会错误的将背景中的斑块检测为目标，原因在于Fast R-CNN在检测中无法看到全局图像。相对于Fast R-CNN，YOLO背景预测错误率低一半。（3）YOLO可以学习到目标的概括信息（generalizable representation），具有一定普适性。我们采用自然图片训练YOLO，然后采用艺术图像来预测。YOLO比其它目标检测方法（DPM和R-CNN）准确率高很多  
 
 
+## [yolo v2](https://zhuanlan.zhihu.com/p/35325884)
+相同的YOLOv2模型可以运行在不同的大小的图片上，提供速度和精度之间的轻松权衡  
+YOLOv1在物体定位方面（localization）不够准确，并且召回率（recall）较低。YOLOv2共提出了几种改进策略来提升YOLO模型的定位准确度和召回率，从而提高mAP，YOLOv2在改进中遵循一个原则：保持检测速度，这也是YOLO模型的一大优势。YOLOv2的改进策略如图所示  
+![](https://i.imgur.com/D5aOUGn.jpg)  
+
+**Batch Normalization**  
+Batch Normalization可以提升模型收敛速度，而且可以起到一定正则化效果，降低模型的过拟合。在YOLOv2中，每个卷积层后面都添加了Batch Normalization层，并且不再使用droput。使用Batch Normalization后，YOLOv2的mAP提升了2.4%。  
+
+**高分辨率分类器 High Resolution Classifier**  
+目前大部分的检测模型都会在先在ImageNet分类数据集上预训练模型的主体部分（CNN特征提取器），由于历史原因，ImageNet分类模型基本采用大小为 224\times224 的图片作为输入，分辨率相对较低，不利于检测模型  
+YOLOv1在采用 224\times224 分类模型预训练后，将分辨率增加至 448\times448 ，并使用这个高分辨率在检测数据集上finetune。但是直接切换分辨率，检测模型可能难以快速适应高分辨率。  
+YOLOv2增加了在ImageNet数据集上使用 448\times448 输入来finetune分类网络这一中间过程（10 epochs），这可以使得模型在检测数据集上finetune之前已经适用高分辨率输入。使用高分辨率分类器后，YOLOv2的mAP提升了约4%。  
+
+**使用anchor boxs进行卷积(Convolutional With Anchor Boxes)**  
+在YOLOv1中，输入图片最终被划分为 7\times7 网格，每个单元格预测2个边界框。YOLOv1最后采用的是全连接层直接对边界框进行预测，其中边界框的宽与高是相对整张图片大小的，而由于各个图片中存在不同尺度和长宽比（scales and ratios）的物体，YOLOv1在训练过程中学习适应不同物体的形状是比较困难的，这也导致YOLOv1在精确定位方面表现较差  
+YOLOv2借鉴了Faster R-CNN中RPN网络的先验框（anchor boxes，prior boxes，SSD也采用了先验框）策略。RPN对CNN特征提取器得到的特征图（feature map）进行卷积来预测每个位置的边界框以及置信度（是否含有物体），并且各个位置设置不同尺度和比例的先验框，所以RPN预测的是边界框相对于先验框的offsets值，采用先验框使得模型更容易学习。所以YOLOv2移除了YOLOv1中的全连接层而采用了卷积和anchor boxes来预测边界框。  
+为了使检测所用的特征图分辨率更高，移除其中的一个pool层。  
+在检测模型中，YOLOv2不是采用 448\times448 图片作为输入，而是采用 416\times416 大小。因为YOLOv2模型下采样的总步长为32 ，对于 416\times416 大小的图片，最终得到的特征图大小为 13\times13 ，维度是奇数，这样特征图恰好只有一个中心位置。对于一些大物体，它们中心点往往落入图片中心位置，此时使用特征图的一个中心点去预测这些物体的边界框相对容易些。所以在YOLOv2设计中要保证最终的特征图有奇数个位置。  
+对于YOLOv1，每个cell都预测2个boxes，每个boxes包含5个值： (x, y, w, h, c) ，前4个值是边界框位置与大小，最后一个值是置信度（confidence scores，包含两部分：含有物体的概率以及预测框与ground truth的IOU）。但是每个cell只预测一套分类概率值（class predictions，其实是置信度下的条件概率值）,供2个boxes共享。YOLOv2使用了anchor boxes之后，每个位置的各个anchor box都单独预测一套分类概率值，这和SSD比较类似（但SSD没有预测置信度，而是把background作为一个类别来处理）  
+使用anchor boxes之后，YOLOv2的mAP有稍微下降（这里下降的原因，猜想是YOLOv2虽然使用了anchor boxes，但是依然采用YOLOv1的训练方法）。YOLOv1只能预测98个边界框（ 7\times7\times2 ），而YOLOv2使用anchor boxes之后可以预测上千个边界框（ 13\times13\times\text{num_anchors} ）。所以使用anchor boxes之后，YOLOv2的召回率大大提升，由原来的81%升至88%。  
+
+**尺度聚类（Dimension Clusters）**  
+在Faster R-CNN和SSD中，先验框的维度（长和宽）都是手动设定的，带有一定的主观性。如果选取的先验框维度比较合适，那么模型更容易学习，从而做出更好的预测。因此，YOLOv2采用k-means聚类方法对训练集中的边界框做了聚类分析。因为设置先验框的主要目的是为了使得预测框与ground truth的IOU更好，所以聚类分析时选用box与聚类中心box之间的IOU值作为距离指标  
+d(box, centroid) = 1 - IOU(box, centroid)  
+下图为在VOC和COCO数据集上的聚类分析结果，随着聚类中心数目的增加，平均IOU值（各个边界框与聚类中心的IOU的平均值）是增加的，但是综合考虑模型复杂度和召回率，作者最终选取5个聚类中心作为先验框，其相对于图片的大小如右边图所示。对于两个数据集，5个先验框的width和height如下所示（来源：YOLO源码的cfg文件）：  
+> COCO: (0.57273, 0.677385), (1.87446, 2.06253), (3.33843, 5.47434), (7.88282, 3.52778), (9.77052, 9.16828)  
+VOC: (1.3221, 1.73145), (3.19275, 4.00944), (5.05587, 8.09892), (9.47112, 4.84053), (11.2364, 10.0071)   
+
+这里先验框的大小是相对于预测的特征图大小（ 13\times13 ）,对比两个数据集，也可以看到COCO数据集上的物体相对小点。   
+![](https://i.imgur.com/eynWhEf.jpg)  
+
+**New Network: Darknet-19**  
+YOLOv2采用了一个新的基础模型（特征提取器），称为Darknet-19，包括19个卷积层和5个maxpooling层，如图所示。Darknet-19与VGG16模型设计原则是一致的，主要采用 3\times3 卷积，采用 2\times2 的maxpooling层之后，特征图维度降低2倍，而同时将特征图的channles增加两倍。与NIN(Network in Network)类似，Darknet-19最终采用global avgpooling做预测，并且在 3\times3 卷积之间使用 1\times1 卷积来压缩特征图channles以降低模型计算量和参数。Darknet-19每个卷积层后面同样使用了batch norm层以加快收敛速度，降低模型过拟合。在ImageNet分类数据集上，Darknet-19的top-1准确度为72.9%，top-5准确度为91.2%，但是模型参数相对小一些。使用Darknet-19之后，YOLOv2的mAP值没有显著提升，但是计算量却可以减少约33%。  
+![](https://i.imgur.com/eR8zyqz.jpg)   
+
+**直接位置预测(Direct location prediction)**  
+YOLOv2借鉴RPN网络使用anchor boxes来预测边界框相对先验框的offsets。边界框的实际中心位置 (x,y) ，需要根据预测的坐标偏移值 (t_x, t_y) ，先验框的尺度 (w_a, h_a) 以及中心坐标 (x_a, y_a) （特征图每个位置的中心点）来计算：  
+\\x = (t_x\times w_a)-x_a  
+\\y=(t_y\times h_a) - y_a  
+但是上面的公式是无约束的，预测的边界框很容易向任何方向偏移，如当 t_x=1 时边界框将向右偏移先验框的一个宽度大小，而当 t_x=-1 时边界框将向左偏移先验框的一个宽度大小，因此每个位置预测的边界框可以落在图片任何位置，这导致模型的不稳定性，在训练时需要很长时间来预测出正确的offsets。  
+所以，YOLOv2弃用了这种预测方式，而是沿用YOLOv1的方法，就是预测边界框中心点相对于对应cell左上角位置的相对偏移值，为了将边界框中心点约束在当前cell中，使用sigmoid函数处理偏移值，这样预测的偏移值在(0,1)范围内（每个cell的尺度看做1）  
+总结来看，根据边界框预测的4个offsets t_x, t_y, t_w, t_h ，可以按如下公式计算出边界框实际位置和大小：  
+\\b_x = \sigma (t_x)+c_x  
+\\b_y = \sigma (t_y) + c_y  
+\\b_w = p_we^{t_w}  
+\\b_h = p_he^{t_h}  
+其中 (c_x, x_y) 为cell的左上角坐标，如下图所示，在计算时每个cell的尺度为1，所以当前cell的左上角坐标为 (1,1) 。由于sigmoid函数的处理，边界框的中心位置会约束在当前cell内部，防止偏移过多。p_w 和 p_h 是先验框的宽度与长度，它们的值也是相对于特征图大小的    
+![](https://i.imgur.com/tNVTJHo.jpg)   
+记特征图的大小为 (W, H) （在文中是 (13, 13) )，这样我们可以将边界框相对于整张图片的位置和大小计算出来（4个值均在0和1之间）：  
+\\b_x = (\sigma (t_x)+c_x)/W  
+\\ b_y = (\sigma (t_y) + c_y)/H  
+\\b_w = p_we^{t_w}/W  
+\\b_h = p_he^{t_h}/H  
+将上面的4个值分别乘以图片的宽度和长度（像素点值）就可以得到边界框的最终位置和大小了。这就是YOLOv2边界框的整个解码过程。约束了边界框的位置预测值使得模型更容易稳定训练，结合聚类分析得到先验框与这种预测方法，YOLOv2的mAP值提升了约5%。  
+
+**细粒度特征(Fine-Grained Features)**  
+YOLOv2的输入图片大小为 416\times416 ，经过5次maxpooling之后得到 13\times13 大小的特征图，并以此特征图采用卷积做预测。 13\times13 大小的特征图对检测大物体是足够了，但是对于小物体还需要更精细的特征图（Fine-Grained Features）。因此SSD使用了多尺度的特征图来分别检测不同大小的物体，前面更精细的特征图可以用来预测小物体。YOLOv2提出了一种passthrough层来利用更精细的特征图。YOLOv2所利用的Fine-Grained Features是 26\times26 大小的特征图（最后一个maxpooling层的输入），对于Darknet-19模型来说就是大小为 26\times26\times512 的特征图。passthrough层与ResNet网络的shortcut类似，以前面更高分辨率的特征图为输入，然后将其连接到后面的低分辨率特征图上。前面的特征图维度是后面的特征图的2倍，passthrough层抽取前面层的每个 2\times2 的局部区域，然后将其转化为channel维度，对于 26\times26\times512 的特征图，经passthrough层处理之后就变成了 13\times13\times2048 的新特征图（特征图大小降低4倍，而channles增加4倍，图6为一个实例），这样就可以与后面的 13\times13\times1024 特征图连接在一起形成 13\times13\times3072 大小的特征图，然后在此特征图基础上卷积做预测。在YOLO的C源码中，passthrough层称为reorg layer。在TensorFlow中，可以使用tf.extract_image_patches或者tf.space_to_depth来实现passthrough层：  
+
+	out = tf.extract_image_patches(in, [1, stride, stride, 1], [1, stride, stride, 1], [1,1,1,1], padding="VALID")  
+	// or use tf.space_to_depth  
+	out = tf.space_to_depth(in, 2)    
+passthrough层实例：  
+![](https://i.imgur.com/3w5lJJ0.jpg)  
+另外，作者在后期的实现中借鉴了ResNet网络，不是直接对高分辨特征图处理，而是增加了一个中间卷积层，先采用64个 1\times1 卷积核进行卷积，然后再进行passthrough处理，这样 26\times26\times512 的特征图得到 13\times13\times256 的特征图。这算是实现上的一个小细节。使用Fine-Grained Features之后YOLOv2的性能有1%的提升。  
+
+**多尺度训练(Multi-Scale Training)**  
+由于YOLOv2模型中只有卷积层和池化层，所以YOLOv2的输入可以不限于 416\times416 大小的图片。为了增强模型的鲁棒性，YOLOv2采用了多尺度输入训练策略，具体来说就是在训练过程中每间隔一定的iterations之后改变模型的输入图片大小。由于YOLOv2的下采样总步长为32，输入图片大小选择一系列为32倍数的值： \{320, 352,..., 608\} ，输入图片最小为 320\times320 ，此时对应的特征图大小为 10\times10 （不是奇数了，确实有点尴尬），而输入图片最大为 608\times608 ，对应的特征图大小为 19\times19 。在训练过程，每隔10个iterations随机选择一种输入图片大小，然后只需要修改对最后检测层的处理就可以重新训练。  
+![](https://i.imgur.com/vr3bcxZ.jpg)  
+采用Multi-Scale Training策略，YOLOv2可以适应不同大小的图片，并且预测出很好的结果。在测试时，YOLOv2可以采用不同大小的图片作为输入，在VOC 2007数据集上的效果如下图所示。可以看到采用较小分辨率时，YOLOv2的mAP值略低，但是速度更快，而采用高分辨输入时，mAP值更高，但是速度略有下降，对于 544\times544 ，mAP高达78.6%。注意，这只是测试时输入图片大小不同，而实际上用的是同一个模型（采用Multi-Scale Training训练）。   
 
 
+> **总结来看，虽然YOLOv2做了很多改进，但是大部分都是借鉴其它论文的一些技巧，如Faster R-CNN的anchor boxes，YOLOv2采用anchor boxes和卷积做预测，这基本上与SSD模型（单尺度特征图的SSD）非常类似了，而且SSD也是借鉴了Faster R-CNN的RPN网络。从某种意义上来说，YOLOv2和SSD这两个one-stage模型与RPN网络本质上无异，只不过RPN不做类别的预测，只是简单地区分物体与背景。在two-stage方法中，RPN起到的作用是给出region proposals，其实就是作出粗糙的检测，所以另外增加了一个stage，即采用R-CNN网络来进一步提升检测的准确度（包括给出类别预测）。而对于one-stage方法，它们想要一步到位，直接采用“RPN”网络作出精确的预测，要因此要在网络设计上做很多的tricks。YOLOv2的一大创新是采用Multi-Scale Training策略，这样同一个模型其实就可以适应多种大小的图片了。**  
 
 
+**训练**  
+YOLOv2的训练主要包括三个阶段:  
+第一阶段就是先在ImageNet分类数据集上预训练Darknet-19，此时模型输入为 224\times224 ，共训练160个epochs。  
+第二阶段将网络的输入调整为 448\times448 ，继续在ImageNet数据集上finetune分类模型，训练10个epochs，此时分类模型的top-1准确度为76.5%，而top-5准确度为93.3%。  
+第三个阶段就是修改Darknet-19分类模型为检测模型，并在检测数据集上继续finetune网络。网络修改包括（网路结构可视化）：移除最后一个卷积层、global avgpooling层以及softmax层，并且新增了三个 3\times3\times2014卷积层，同时增加了一个passthrough层，最后使用 1\times1 卷积层输出预测结果，输出的channels数为： \text{num_anchors}\times(5+\text{num_classes}) ，和训练采用的数据集有关系。由于anchors数为5，对于VOC数据集输出的channels数就是125，而对于COCO数据集则为425。这里以VOC数据集为例，最终的预测矩阵为 T （shape为 (\text{batch_size}, 13, 13, 125) ），可以先将其reshape为 (\text{batch_size}, 13, 13, 5, 25) ，其中 T[:, :, :, :, 0:4] 为边界框的位置和大小 (t_x, t_y, t_w, t_h) ， T[:, :, :, :, 4] 为边界框的置信度，而 T[:, :, :, :, 5:] 为类别预测值。  
+训练三个阶段图示：  
+![](https://i.imgur.com/irDEhjr.jpg)  
+yolov2网络结构示意图：  
+![](https://i.imgur.com/1EzVLq5.jpg)  
+
+> **先验框匹配（样本选择）**  
+> 和YOLOv1一样，对于训练图片中的ground truth，若其中心点落在某个cell内，那么该cell内的5个先验框所对应的边界框负责预测它，具体是哪个边界框预测它，需要在训练中确定，即由那个与ground truth的IOU最大的边界框预测它，而剩余的4个边界框不与该ground truth匹配。YOLOv2同样需要假定每个cell至多含有一个grounth truth，而在实际上基本不会出现多于1个的情况。  
+> YOLO中一个ground truth只会与一个先验框匹配（IOU值最好的），对于那些IOU值超过一定阈值的先验框，其预测结果就忽略了。这和SSD与RPN网络的处理方式有很大不同，因为它们可以将一个ground truth分配给多个先验框  
+> **训练的损失函数**  
+> 与ground truth匹配的先验框计算坐标误差、置信度误差（此时target为1）以及分类误差，而其它的边界框只计算置信度误差（此时target为0）。YOLOv2和YOLOv1的损失函数一样，为均方差函数。  
+> loss计算公式:  
+> ![](https://i.imgur.com/onmwokg.jpg)  
+> W, H 分别指的是特征图（ 13\times13 ）的宽与高，而 A 指的是先验框数目（这里是5）  
+> 各个 \lambda 值是各个loss部分的权重系数  
+> 第一项loss是计算background的置信度误差，但是哪些预测框来预测背景呢，需要先计算各个预测框和所有ground truth的IOU值，并且取最大值Max_IOU，如果该值小于一定的阈值（YOLOv2使用的是0.6），那么这个预测框就标记为background，需要计算noobj的置信度误差。   
+> 第二项是计算先验框与预测框的坐标误差，但是只在前12800个iterations间计算，我觉得这项应该是在训练前期使预测框快速学习到先验框的形状  
+> 第三大项计算与某个ground truth匹配的预测框各部分loss值，包括坐标误差、置信度误差以及分类误差  
 
 
+## YOLO9000
+YOLO9000是在YOLOv2的基础上提出的一种可以检测超过9000个类别的模型，其主要贡献点在于提出了一种分类和检测的联合训练策略。众多周知，检测数据集的标注要比分类数据集打标签繁琐的多，所以ImageNet分类数据集比VOC等检测数据集高出几个数量级。在YOLO中，边界框的预测其实并不依赖于物体的标签，所以YOLO可以实现在分类和检测数据集上的联合训练。对于检测数据集，可以用来学习预测物体的边界框、置信度以及为物体分类，而对于分类数据集可以仅用来学习分类，但是其可以大大扩充模型所能检测的物体种类。
 
+作者选择在COCO和ImageNet数据集上进行联合训练，但是遇到的第一问题是两者的类别并不是完全互斥的，比如"Norfolk terrier"明显属于"dog"，所以作者提出了一种层级分类方法（Hierarchical classification），主要思路是根据各个类别之间的从属关系（根据WordNet）建立一种树结构WordTree，结合COCO和ImageNet建立的WordTree如下图所示：  
+![](https://i.imgur.com/pQBnJEb.jpg)  
+WordTree中的根节点为"physical object"，每个节点的子节点都属于同一子类，可以对它们进行softmax处理。在给出某个类别的预测概率时，需要找到其所在的位置，遍历这个path，然后计算path上各个节点的概率之积。  
+![](https://i.imgur.com/3v8UvTs.jpg)  
+在训练时，如果是检测样本，按照YOLOv2的loss计算误差，而对于分类样本，只计算分类误差。在预测时，YOLOv2给出的置信度就是 Pr(physical \space object) ，同时会给出边界框位置以及一个树状概率图。在这个概率图中找到概率最高的路径，当达到某一个阈值时停止，就用当前节点表示预测的类别。
+
+通过联合训练策略，YOLO9000可以快速检测出超过9000个类别的物体，总体mAP值为19,7%。我觉得这是作者在这篇论文作出的最大的贡献，因为YOLOv2的改进策略亮点并不是很突出，但是YOLO9000算是开创之举。  
