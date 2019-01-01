@@ -475,6 +475,8 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 
 ### 队列和线程
 
+https://www.jianshu.com/p/d063804fb272
+
 #### 队列
 和 TensorFlow 中的其他组件一样，队列（queue）本身也是图中的一个节点，是一种有状态的节点，其他节点，如入队节点（enqueue）和出队节点（dequeue），可以修改它的内容。主要有两种队列：FIFOQueue 和 RandomShuffleQueue，源代码在tensorflow/tensorflow/python/ops/data_flow_ops.py中。  
 
@@ -628,6 +630,10 @@ TensorFlow 官方网站给出了以下读取数据3种方法：
 实例代码：code/tfrecord.py
 
 1. 把样本数据写入 TFRecords 二进制文件；  
+* numpy数据通过toString转换为二进制，再通过_bytes_feature写入tfrecord  
+* 图片数据通过gfile读取二进制，通过_bytes_feature写入tfrecord  
+* 字符串通过str.encode编码，通过_bytes_feature写入tfrecord  
+* int数据通过_int64_feature写入tfrecord  
 TFRecords 是一种二进制文件，能更好地利用内存，更方便地复制和移动，并且不需要单独的标记文件。具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/convert_to_records.py  
 将数据填入到 tf.train.Example 的协议缓冲区（protocol buffer）中，将协议缓冲区序列化为一个字符串，通过 tf.python_io.TFRecordWriter 写入 TFRecords 文件。  
 	    writer = tf.python_io.TFRecordWriter(output_file)
@@ -660,7 +666,8 @@ TFRecords 是一种二进制文件，能更好地利用内存，更方便地复�
 （2）创建张量，从二进制文件随机读取一个 mini-batch；  
 （3）把每一批张量传入网络作为输入节点。  
 具体代码：tensorflow/tensorflow/examples/ how_tos/reading_data/fully_connected_reader.py  
-首先我们定义从文件中读取并解析一个样本;接下来使用 tf.train.shuffle_batch 将前面生成的样本随机化，获得一个最小批次的张量;最后，我们把生成的 batch 张量作为网络的输入，进行训练。
+首先我们定义从文件中读取并解析一个样本;接下来使用 tf.train.shuffle_batch 将前面生成的样本随机化，获得一个最小批次的张量;最后，我们把生成的 batch 张量作为网络的输入，进行训练。  
+* 对于以string的方式写入的numpy数据，通过tf.decode_raw将原来编码为字符串类型的变量重新变回来  
   
 	    def parse_example_proto(example_serialized):
 	    	feature = {
