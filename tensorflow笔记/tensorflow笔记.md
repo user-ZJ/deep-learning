@@ -13,7 +13,52 @@ TensorFlow 的数据流图是由节点（node）和边（edge）组成的有向�
 tf.Graph.control_dependencies(control_inputs)
 
 ### 数据类型： 
-https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/framework/dtypes.py  
+https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/framework/dtypes.py
+#### 常量
+constant是TensorFlow的常量节点，通过constant方法创建，其是计算图中的起始节点，是传入数据。  
+tf.constant(value=[1,2],dtype=tf.float32,shape=(1,2),name='testconst', verify_shape=False)   
+tf.constant() 返回的 tensor 是一个常量 tensor，这个 tensor 的值不会变
+value：初始值，必填，必须是一个张量
+dtype：数据类型，选填，默认为value的数据类型
+shape：数据形状，选填，默认为value的shape，设置时不得比value小，可以比value阶数、维度更高，超过部分按value提供最后一个数字填充
+name：常量名，选填，默认值不重复，根据创建顺序为（Const，Const_1，Const_2.......）
+verify_shape:是否验证value的shape和指定shape相符，若设为True则进行验证，不相符时会抛出异常
+ 
+#### 变量
+Vatiable是tensorflow的变量节点，通过tf.Variable, tf.get_variable方法创建，并且需要传递初始值。在使用前需要通过tensorflow的初始化方法进行初始化  
+tf.Variable 存在于单个 session.run 调用的上下文之外,可以持久性存储。具体 op 允许读取和修改变脸的值。这些修改在多个 tf.Session 之间是可见的，因此对于一个 tf.Variable，多个Session可以看到相同的值  
+tf.Variable  
+创建一个变量  
+tf.get_variable()  
+通过变量名获取变量，如果变量不存在则创建该变量，要求指定变量的名称,其他副本将使用此名称访问同一变量，以及在对模型设置检查点和导出模型时指定此变量的值  
+name:已创建变量名或新变量名  
+shape:数据形状  
+dtype:数据类型  
+initializer：变量初始化函数  
+regularizer：正则化函数，结果会添加到tf.GraphKeys.REGULARIZATION_LOSSES用来计算正则化loss
+trainable:为TRUE时，变量会被添加到GraphKeys.TRAINABLE_VARIABLES中  
+变量初始化函数  
+1. tf.constant_initializer()也可以简写为tf.Constant()：初始化为常量常量  
+2. tf.zeros_initializer()也可以简写为tf.Zeros()：初始化为0  
+3. tf.ones_initializer()也可以简写为tf.Ones()：初始化为1  
+4. tf.truncated_normal_initializer()或者简写为tf.TruncatedNormal()：生成截断正态分布的随机数  
+5. tf.random_normal_initializer()可简写为 tf.RandomNormal()：生成标准正态分布的随机数  
+6. tf. random_uniform_initializer()可简写为tf.RandomUniform():生成均匀分布的随机数  
+7. tf.uniform_unit_scaling_initializer()可简写为tf.UniformUnitScaling():和均匀分布差不多，只是这个初始化方法不需要指定最小最大值，是通过计算出来的  
+8. tf.variance_scaling_initializer()可简写为tf.VarianceScaling():生成截断正态分布或均匀分布的随机数  
+9. tf.orthogonal_initializer()简写为tf.Orthogonal():生成正交矩阵的随机数  
+10. tf.glorot_uniform_initializer():也称之为Xavier uniform initializer，由一个均匀分布（uniform distribution)来初始化数据  
+11. glorot_normal_initializer（）: 也称之为 Xavier normal initializer. 由一个 truncated normal distribution来初始化数据.  
+
+在使用变量之前要使用 session.run(tf.global_variables_initializer()) 函数来初始化graph中的变量,变量的状态存储在session里.  
+另外还可以通过tf.train.Saver.restore()来初始化变量  
+
+#### placeholder
+placeholder是TensorFlow的占位符节点，由placeholder方法创建，其也是一种常量，但是由用户在调用run方法是传递的，也可以将placeholder理解为一种形参。即其不像constant那样直接可以使用，需要用户传递常数值。  
+tf.placeholder(dtype=tf.float32, shape=[144, 10], name='X')  
+dtype：数据类型，必填，默认为value的数据类型  
+shape：数据形状，选填，不填则随传入数据的形状自行变动，可以在多次调用中传入不同形状的数据   
+name：常量名，选填，默认值不重复，根据创建顺序为（Placeholder，Placeholder_1，Placeholder_2.......）  
 
 ### 节点:  
 图中的节点又称为算子，它代表一个操作（operation，OP），一般用来表示施加的数学运算，也可以表示数据输入（feed in）的起点以及输出（push out）的终点，或者是读取/写入持久变量（persistent variable）的终点。 
@@ -27,6 +72,8 @@ https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/math_
 检查点操作	Save、Restore  
 队列和同步操作	Enqueue、Dequeue、MutexAcquire、MutexRelease  
 控制张量流动的操作	Merge、Switch、Enter、Leave、NextIteration  
+误差函数  softmax_cross_entropy_with_logits、sparse_softmax_cross_entropy_with_logits、sigmoid_cross_entropy_with_logits、weighted_cross_entropy_with_logits  
+option操作  tf.Operation.name、tf.Operation.type  
 
 > tf.stack,tf.concat:将两个张量合并，tf.unstack:是将一个高阶数的张量在某个axis上分解为低阶数的张量  
 > tf.expand_dims:增加一个维度；tf.squeeze:从tensor中删除所有大小是1的维度；tf.squeeze(cropped,squeeze_dims=0):删除指定尺寸为1的维度  
@@ -37,11 +84,20 @@ https://blog.csdn.net/lovelyaiq/article/details/78716325
 
 
 ### 其他概念
-1. 图：把操作任务描述成有向无环图  
+1. 图：把操作任务描述成有向无环图    
+tensorflow中所有的operation都必须定义在graph中。在tensorflow程序中存在一个默认graph，如果没有指定graph，所有operation都保存在默认图中。  
+tf.get_default_graph()：获取默认graph  
+tf.Graph.init()：创建一个空图  
+Graph.as_default()：将某图设置为默认图  
+tf.get_default_graph().as_graph_def().node：获取图中所有节点  
+tf.reset_default_graph ：移除之前的权重和偏置项  
+Graph. get_operation_by_name: 对于给定的名称，返回操作（Operation）  
+Graph. get_tensor_by_name: 返回给定名称的tensor  
 2. 会话：  
 会话（session）提供在图中执行操作的一些方法。一般的模式是，建立会话，此时会生成一张空图，在会话中添加节点和边，形成一张图，然后执行。在调用 Session 对象的 run()方法来执行图时，传入一些 Tensor，这个过程叫填充（feed）；返回的结果类型根据输入的类型而定，这个过程叫取回（fetch）  
 会话是图交互的一个桥梁，一个会话可以有多个图，会话可以修改图的结构，也可以往图中注入数据进行计算。因此，会话主要有两个 API 接口：Extend 和 Run。Extend 操作是在 Graph 中添加节点和边，Run 操作是输入计算的节点和填充必要的数据后，进行运算，并输出运算结果。  
 **InteractiveSession()创建交互式上下文的 TensorFlow 会话，与常规会话不同的是，交互式会话会成为默认会话，方法（如 tf.Tensor.eval 和 tf.Operation.run）都可以使用该会话来运行操作（OP）**  
+详见代码： session.py  
 3. 设备：  
 设备（device）是指一块可以用来运算并且拥有自己的地址空间的硬件，如 GPU 和 CPU。TensorFlow 为了实现分布式执行操作，充分利用计算资源，可以明确指定操作在哪个设备上执行  
 如：with tf.device("/gpu:1")  
@@ -113,6 +169,7 @@ TensorFlow 还提供了填充机制，可以在构建图时使用 tf.placeholder
 
 ### 变量作用域
 在 TensorFlow 中有两个作用域（scope），一个是 name_scope，另一个是 variable_scope。variable_scope 主要是给 variable_name 加前缀，也可以给 op_name 加前缀；name_scope 是给 op_name 加前缀。  
+示例代码：scope.py  
 
 #### variable_scope
 variable_scope 变量作用域机制在 TensorFlow 中主要由两部分组成：  
@@ -684,6 +741,28 @@ TFRecords 是一种二进制文件，能更好地利用内存，更方便地复�
 	    filename_queue = tf.train.string_input_producer(['test.tfrecord'],)
 	    _, example_serialized = reader.read(filename_queue)
 	    image_buffer, label_index, fname = parse_example_proto(example_serialized)
+
+### Tensorboard
+示例代码：tensorboard.py  
+Tensorboard是Google提供给tensorflow开发者用于在web端可视化训练过程中数据的工具，开发者在训练模型过程中，将需要可视化数据存入自定义日志文件中，然后在指定的web端可视化地展现这些信息。  
+Tensorboard可以记录与展示以下数据形式有：  
+* GRAPHS：整个模型计算图结构    
+* SCALARS：各标量在训练过程中的变化趋势，如accuracy、cross entropy、learning_rate、网络各层的bias和weights等标量  
+* IMAGES：输入数据中图片、视频  
+* AUDIO：输入数据中音频  
+* HISTOGRAM：各变量（如：activations、gradients，weights 等变量）随着训练轮数的数值分布直方图，横轴上越靠前就是越新的轮数的结果  
+* DISTRIBUTIONS：数据分布  
+* PROJECTOR 模型权重分析，默认使用PCA分析方法，将高维数据投影到3D空间，从而显示数据之间的关系  
+Tensorboard的可视化过程，可以分为以下几个步骤：  
+1.	创建graph，确定需要获取哪些数据  
+2.	在需要获取数据部分，放置summary operations以记录信息  
+3.	定义merged = tf.summary.merge_all()，用于执行所有summary节点；  
+summary本质是operation，需要在session中run，因此，我们需要特地去运行所有的summary节点。但是呢，一份程序下来可能有超多这样的summary 节点，要手动一个一个去启动自然是及其繁琐的，因此我们可以使用tf.summary.merge_all去将所有summary节点合并成一个节点，只要运行这个节点，就能产生所有我们之前设置的summary data  
+4.	使用tf.summary.FileWriter创建本地日志文件，存放summary输出的数据  
+5.	通过summary=sess.run(merged)执行summary，获取输出数据  
+6.	使用writer.add_summary(summary, i)将输出数据写入到文件  
+7.	训练完成后，在命令行输入运行tensorboard的指令，之后打开web端可查看可视化的结果  
+
 
 ## tensorflow源码
 
