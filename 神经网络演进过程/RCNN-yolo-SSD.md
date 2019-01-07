@@ -259,8 +259,8 @@ Priorbox：类比于conv2d，为生成default box的option
 confidence：类别置信度，每个default box 生成21个类别confidence  
 location：包含4个值 (cx, cy, w, h) ，分别表示box的中心坐标以及宽高  
 feature map cell：指feature map中每一个小格子
-先验框位置用 d=(d^{cx}, d^{cy}, d^w, d^h) 表示  
-边界框用 b=(b^{cx}, b^{cy}, b^w, b^h)表示 
+先验框位置用 ![](https://latex.codecogs.com/gif.latex?d=(d^{cx},&space;d^{cy},&space;d^w,&space;d^h)) 表示  
+边界框用 ![](https://latex.codecogs.com/gif.latex?b=(b^{cx},&space;b^{cy},&space;b^w,&space;b^h))表示 
 
 ### 先验框生成方式
 SSD网络中选取不同大小的feature map用来检测目标，在feature map上生成固定大小和长宽比的先验框用来检测目标，大的特征图来中先验框用来检测相对较小的目标，而小的特征图中先验框负责检测大目标  
@@ -268,59 +268,59 @@ SSD网络中选取不同大小的feature map用来检测目标，在feature map�
 不同特征图设置的先验框数目不同，同一个特征图上每个单元设置的先验框数目是相同的，这里的数目指的是一个单元的先验框数目
 
 ### 特征图选取
-论文中使用的基础网络为VGG16，并对VGG16网络进行改造，将VGG16的全连接层fc6和fc7转换成 3\times3 卷积层 conv6和 1\times1 卷积层conv7，同时将池化层pool5由原来的stride=2的 2\times 2 变成stride=1的 3\times 3，然后移除dropout层和fc8层，并新增一系列卷积层，在检测数据集上做finetuing  
+论文中使用的基础网络为VGG16，并对VGG16网络进行改造，将VGG16的全连接层fc6和fc7转换成 ![](https://latex.codecogs.com/gif.latex?3\times3) 卷积层 conv6和 ![](https://latex.codecogs.com/gif.latex?1\times1) 卷积层conv7，同时将池化层pool5由原来的stride=2的 ![](https://latex.codecogs.com/gif.latex?2\times2) 变成stride=1的 ![](https://latex.codecogs.com/gif.latex?3\times&space;3)，然后移除dropout层和fc8层，并新增一系列卷积层，在检测数据集上做finetuing  
 特征图选取了Conv4_3，Conv7，Conv8_2，Conv9_2，Conv10_2，Conv11_2作为检测所用的特征图，其大小分别是 (38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)  
-其中conv4_3层特征图大小是 38\times38 ，但是该层比较靠前，其norm较大，所以在其后面增加了一个L2 Normalization层，以保证和后面的检测层差异不是很大。
+其中conv4_3层特征图大小是 ![](https://latex.codecogs.com/gif.latex?38\times38) ，但是该层比较靠前，其norm较大，所以在其后面增加了一个L2 Normalization层，以保证和后面的检测层差异不是很大。
 
 ### 先验框尺度确定
 对于先验框的尺度，其遵守一个线性递增规则：随着特征图大小降低，先验框尺度线性增加  
 ![](https://i.imgur.com/clgFCu3.png)  
-其中 m 指的特征图个数，但却是 5 ，因为第一层（Conv4_3层）是单独设置的，论文中其先验框的尺度比例一般设置为 s_{min}/2=0.1，尺度为 300\times 0.1=30    
-s_k 表示先验框大小相对于图片的比例，而 s_{min} 和 s_{max} 表示比例的最小值与最大值，paper里面取0.2和0.9  
+其中 m 指的特征图个数，但却是 5 ，因为第一层（Conv4_3层）是单独设置的，论文中其先验框的尺度比例一般设置为 ![](https://latex.codecogs.com/gif.latex?s_{min}/2=0.1)，尺度为 ![](https://latex.codecogs.com/gif.latex?300\times&space;0.1=30)    
+![](https://latex.codecogs.com/gif.latex?s_k) 表示先验框大小相对于图片的比例，而 ![](https://latex.codecogs.com/gif.latex?s_{min}) 和 ![](https://latex.codecogs.com/gif.latex?s_{max}) 表示比例的最小值与最大值，paper里面取0.2和0.9  
 其他5个特征图尺度比例为：0.2，0.37，0.54，0.71，0.88，尺度为 60,111, 162,213,264  
 那么各个特征图的先验框尺度为 30,60,111, 162,213,264  
 
 ### 先验框长宽比选取
-对于长宽比，一般选取 a_r\in \{1,2,3,\frac{1}{2},\frac{1}{3}\} ，对于特定的长宽比，按如下公式计算先验框的宽度与高度：  
-w^a_{k}=s_k\sqrt{a_r},\space h^a_{k}=s_k/\sqrt{a_r}    
+对于长宽比，一般选取 ![](https://latex.codecogs.com/gif.latex?a_r\in&space;\{1,2,3,\frac{1}{2},\frac{1}{3}\}) ，对于特定的长宽比，按如下公式计算先验框的宽度与高度：  
+![](https://latex.codecogs.com/gif.latex?w^a_{k}=s_k\sqrt{a_r},\space&space;h^a_{k}=s_k/\sqrt{a_r})    
 **注意：这里的s_k指的是先验框实际尺度**
-默认情况下，每个特征图会有一个 a_r=1 且尺度为 s_k 的先验框，除此之外，还会设置一个尺度为 s'_{k}=\sqrt{s_k s_{k+1}} 且 a_r=1 的先验框，这样每个特征图都设置了两个长宽比为1但大小不同的正方形先验框。因此，每个特征图一共有 6 个先验框 \{1,2,3,\frac{1}{2},\frac{1}{3},1'\}      
-**注意：最后一个特征图需要参考一个虚拟 s_{m+1}=300\times105/100=315 来计算 s'_{m}**  
-但在论文中，Conv4_3，Conv10_2和Conv11_2层仅使用4个先验框，它们不使用长宽比为 3,\frac{1}{3} 的先验框。  
+默认情况下，每个特征图会有一个 ![](https://latex.codecogs.com/gif.latex?a_r=1) 且尺度为 ![](https://latex.codecogs.com/gif.latex?s_k) 的先验框，除此之外，还会设置一个尺度为 ![](https://latex.codecogs.com/gif.latex?s'_{k}=\sqrt{s_k&space;s_{k&plus;1}}) 且 ![](https://latex.codecogs.com/gif.latex?a_r=1) 的先验框，这样每个特征图都设置了两个长宽比为1但大小不同的正方形先验框。因此，每个特征图一共有 6 个先验框 ![](https://latex.codecogs.com/gif.latex?\{1,2,3,\frac{1}{2},\frac{1}{3},1'\})      
+**注意：最后一个特征图需要参考一个虚拟 ![](https://latex.codecogs.com/gif.latex?s_{m&plus;1}=300\times105/100=315) 来计算 ![](https://latex.codecogs.com/gif.latex?s'_{m})**  
+但在论文中，Conv4_3，Conv10_2和Conv11_2层仅使用4个先验框，它们不使用长宽比为 3,![](\frac{1}{3}) 的先验框。  
 
 ### 先验框中心点计算
 每个单元的先验框的中心点分布在各个单元的中心，即   
-(\frac{i+0.5}{|f_k|},\frac{j+0.5}{|f_k|}),  
-i,j\in[0, |f_k|) ，  
-其中 |f_k| 为特征图的大小。 
+![](https://latex.codecogs.com/gif.latex?(\frac{i&plus;0.5}{|f_k|},\frac{j&plus;0.5}{|f_k|}),)  
+![](https://latex.codecogs.com/gif.latex?i,j\in[0,&space;|f_k|)&space;，)  
+其中 ![](https://latex.codecogs.com/gif.latex?|f_k|) 为特征图的大小。 
 
 ### 预测过程
 获得原始图片后，使用基础网络对图片特征进行提取，获取不同大小的feature；  
-下面以一个 5\times5 大小的特征图展示检测过程：
+下面以一个 ![](https://latex.codecogs.com/gif.latex?5\times5) 大小的特征图展示检测过程：
 ![](https://i.imgur.com/Aj2Ox7t.jpg)  
 检测分为3个步骤：   
 1. 先验框生成：Priorbox是生成先验框option   
-2. 计算预测框location：采用一次 3\times3 卷积来进行完成  
-3. 计算类别置信度：采用一次 3\times3 卷积来进行完成  
-令 n_k 为该特征图所采用的先验框数目，那么类别置信度需要的卷积核数量为 n_k\times c ，而边界框位置需要的卷积核数量为 n_k\times 4 。  
-由于每个先验框都会预测一个边界框，所以SSD300一共可以预测 38\times38\times4+19\times19\times6+10\times10\times6+5\times5\times6+3\times3\times4+1\times1\times4=8732 个边界框，这是一个相当庞大的数字，所以说SSD本质上是密集采样。  
+2. 计算预测框location：采用一次 ![](https://latex.codecogs.com/gif.latex?3\times3) 卷积来进行完成  
+3. 计算类别置信度：采用一次 ![](https://latex.codecogs.com/gif.latex?3\times3) 卷积来进行完成  
+令 ![](https://latex.codecogs.com/gif.latex?n_k) 为该特征图所采用的先验框数目，那么类别置信度需要的卷积核数量为 n_k\times c ，而边界框位置需要的卷积核数量为 ![](https://latex.codecogs.com/gif.latex?n_k\times&space;4) 。  
+由于每个先验框都会预测一个边界框，所以SSD300一共可以预测 ![](https://latex.codecogs.com/gif.latex?38\times38\times4&plus;19\times19\times6&plus;10\times10\times6&plus;5\times5\times6&plus;3\times3\times4&plus;1\times1\times4=8732) 个边界框，这是一个相当庞大的数字，所以说SSD本质上是密集采样。  
 
 对于每个预测框，首先根据类别置信度确定其类别（置信度最大者）与置信度值，并过滤掉属于背景的预测框。然后根据置信度阈值（如0.5）过滤掉阈值较低的预测框。对于留下的预测框进行解码，根据先验框得到其真实的位置参数（解码后一般还需要做clip，防止预测框位置超出图片）。解码之后，一般需要根据置信度进行降序排列，然后仅保留top-k（如400）个预测框。最后就是进行NMS算法，过滤掉那些重叠度较大的预测框。最后剩余的预测框就是检测结果了。  
 
 ### location偏移量计算
 SSD中ground truth和预测框都是计算相对prior box的相对偏移量，优化方向为减小预测框和ground truth偏移量的差值
 
-先验框位置用 d=(d^{cx}, d^{cy}, d^w, d^h) 表示，边界框用 b=(b^{cx}, b^{cy}, b^w, b^h)表示  
+先验框位置用 ![](https://latex.codecogs.com/gif.latex?d=(d^{cx},&space;d^{cy},&space;d^w,&space;d^h)) 表示，边界框用 ![](https://latex.codecogs.com/gif.latex?b=(b^{cx},&space;b^{cy},&space;b^w,&space;b^h))表示  
 误差计算公式为：  
-l^{cx} = (b^{cx} - d^{cx})/d^w, \space l^{cy} = (b^{cy} - d^{cy})/d^h  
+![](https://latex.codecogs.com/gif.latex?l^{cx}&space;=&space;(b^{cx}&space;-&space;d^{cx})/d^w,&space;\space&space;l^{cy}&space;=&space;(b^{cy}&space;-&space;d^{cy})/d^h) 
 
-l^{w} = \log(b^{w}/d^w), \space l^{h} = \log(b^{h}/d^h)  
+![](https://latex.codecogs.com/gif.latex?l^{w}&space;=&space;\log(b^{w}/d^w),&space;\space&space;l^{h}&space;=&space;\log(b^{h}/d^h))  
 我们称上面这个过程为边界框的编码（encode）  
 
 预测时，你需要反向这个过程，即进行解码（decode），从预测值偏差值 l 中得到边界框的真实位置 b：  
-b^{cx}=d^w l^{cx} + d^{cx}, \space b^{cy}=d^y l^{cy} + d^{cy}  
+![](https://latex.codecogs.com/gif.latex?b^{cx}=d^w&space;l^{cx}&space;&plus;&space;d^{cx},&space;\space&space;b^{cy}=d^y&space;l^{cy}&space;&plus;&space;d^{cy})  
 
-b^{w}=d^w \exp(l^{w}), \space b^{h}=d^h \exp(l^{h})  
+![](https://latex.codecogs.com/gif.latex?b^{w}=d^w&space;\exp(l^{w}),&space;\space&space;b^{h}=d^h&space;\exp(l^{h}))  
 
 ground truth和default box之间的偏移误差同样使用上面公式计算。  
 
@@ -330,17 +330,17 @@ ground truth和default box之间的偏移误差同样使用上面公式计算。
 先验框与ground truth的匹配原则：
 * a.一个先验框只能匹配一个ground truth，但一个ground truth可以匹配多个先验框  
 * b.对于图片中每个ground truth，找到与其IOU最大的先验框，该先验框与其匹配，这样，可以保证每个ground truth一定与某个先验框匹配。  
-* c.对于剩余的未匹配先验框，若某个ground truth的 \text{IOU} 大于某个阈值（一般是0.5），那么该先验框也与这个ground truth进行匹配  
-* d.如果多个ground truth与某个先验框 \text{IOU} 大于阈值，那么先验框只与IOU最大的那个先验框进行匹配,该条原则要在遵循a、b两条原则之后执行，确保某个ground truth一定有一个先验框与之匹配      
+* c.对于剩余的未匹配先验框，若某个ground truth的 IOU 大于某个阈值（一般是0.5），那么该先验框也与这个ground truth进行匹配  
+* d.如果多个ground truth与某个先验框 IOU 大于阈值，那么先验框只与IOU最大的那个先验框进行匹配,该条原则要在遵循a、b两条原则之后执行，确保某个ground truth一定有一个先验框与之匹配      
 * 与ground truth匹配的先验框为正样本，反之，若一个先验框没有与任何ground truth进行匹配，那么该先验框只能与背景匹配，就是负样本。
 尽管一个ground truth可以与多个先验框匹配，但是ground truth相对先验框还是太少了，所以负样本相对正样本会很多。为了保证正负样本尽量平衡，SSD采用了hard negative mining，就是对负样本进行抽样，抽样时按照置信度误差（预测背景的置信度越小，误差越大）进行降序排列，选取误差的较大的top-k作为训练的负样本，以保证正负样本比例接近1:3  
 
 2. 损失函数  
 训练样本确定了，然后就是损失函数了。损失函数定义为位置误差（locatization loss， loc）与置信度误差（confidence loss, conf）的加权和  
-L(x, c, l, g) = \frac{1}{N}(L_{conf}(x,c) + \alpha L_{loc}(x,l,g))  
-\alpha 为权重系数 ，通常设置为1  
+![](https://latex.codecogs.com/gif.latex?L(x,&space;c,&space;l,&space;g)&space;=&space;\frac{1}{N}(L_{conf}(x,c)&space;&plus;&space;\alpha&space;L_{loc}(x,l,g)))  
+![](https://latex.codecogs.com/gif.latex?\alpha) 为权重系数 ，通常设置为1  
 N 是先验框的正样本数量  
-x^p_{ij}\in \{ 1,0 \} 为一个指示参数，当 x^p_{ij}= 1 时表示第 i 个先验框与第 j 个ground truth匹配，并且ground truth的类别为 p   
+![](https://latex.codecogs.com/gif.latex?x^p_{ij}\in&space;\{&space;1,0&space;\}) 为一个指示参数，当 ![](https://latex.codecogs.com/gif.latex?x^p_{ij}=&space;1) 时表示第 i 个先验框与第 j 个ground truth匹配，并且ground truth的类别为 p   
 l 为先验框的所对应边界框的位置预测值  
 g 是ground truth的位置参数  
 
@@ -348,7 +348,7 @@ g 是ground truth的位置参数
 ![location loss](https://i.imgur.com/dTrC4PA.jpg)  
 ![](https://i.imgur.com/3BFH6Zu.jpg)   
 相当于ground truth于default box偏差 和 predict box于default box偏差 的差值，再求smooth L1。  
-由于 x^p_{ij} 的存在，所以位置误差仅针对正样本进行计算  
+由于 ![](https://latex.codecogs.com/gif.latex?x^p_{ij}) 的存在，所以位置误差仅针对正样本进行计算  
 
 * 置信度误差,采用softmax loss  
 ![](https://i.imgur.com/14scf3S.jpg)  
@@ -370,12 +370,12 @@ YOLO-V1（You Only Look Once: Unified, Real-Time Object Detection）
 
 S：Yolo的CNN网络将输入的图片分割成 S\times S 网格，然后每个单元格负责去检测那些中心点落在该格子内的目标  
 B：每个单元格会预测 B 个边界框（bounding box）以及边界框的置信度（confidence score）  
-c:置信度（confidence score）,所谓置信度其实包含两个方面，一是这个边界框含有目标的可能性大小，二是这个边界框的准确度。前者记为 Pr(object) (取值为0或者1)，当该边界框是背景时（即不包含目标），此时 Pr(object)=0 。而当该边界框包含目标时， Pr(object)=1 。边界框的准确度可以用预测框与实际框（ground truth）的IOU（intersection over union，交并比）来表征，记为 \text{IOU}^{truth}_{pred} 。因此置信度可以定义为 Pr(object)*\text{IOU}^{truth}_{pred} 。  
+c:置信度（confidence score）,所谓置信度其实包含两个方面，一是这个边界框含有目标的可能性大小，二是这个边界框的准确度。前者记为 Pr(object) (取值为0或者1)，当该边界框是背景时（即不包含目标），此时 Pr(object)=0 。而当该边界框包含目标时， Pr(object)=1 。边界框的准确度可以用预测框与实际框（ground truth）的IOU（intersection over union，交并比）来表征，记为![](https://latex.codecogs.com/gif.latex?\text{IOU}^{truth}_{pred}) 。因此置信度可以定义为 Pr(object) \* ![](https://latex.codecogs.com/gif.latex?\text{IOU}^{truth}_{pred}) 。  
 (x, y,w,h) ：(x,y) 是边界框的中心坐标，而 w 和 h 是边界框的宽与高，中心坐标的预测值 (x,y) 是相对于每个单元格左上角坐标点的偏移值，并且单位是相对于单元格大小的；边界框的 w 和 h 预测值是相对于整个图片的宽与高的比例，(x, y,w,h)大小在 [0,1] 范围  
 边界框：(x,y,w,h,c) ，其中前4个表征边界框的大小与位置，而最后一个值是置信度。  
 C：分类数
-Pr(class_{i}|object) ：对于每一个单元格其还要给出预测出 C 个类别概率值，其表征的是由该单元格负责预测的边界框其目标属于各个类别的概率；但是这些概率值其实是在各个边界框置信度下的条件概率，即 Pr(class_{i}|object)；**不管一个单元格预测多少个边界框，其只预测一组类别概率值，这是Yolo算法的一个缺点，在后来的改进版本中，Yolo9000是把类别概率预测值与边界框是绑定在一起的**  
-边界框类别置信度（class-specific confidence scores）: Pr(class_{i}|object)*Pr(object)*\text{IOU}^{truth}_{pred}=Pr(class_{i})*\text{IOU}^{truth}_{pred}   
+![](https://latex.codecogs.com/gif.latex?Pr(class_{i}|object)) ：对于每一个单元格其还要给出预测出 C 个类别概率值，其表征的是由该单元格负责预测的边界框其目标属于各个类别的概率；但是这些概率值其实是在各个边界框置信度下的条件概率，即 Pr(class_{i}|object)；**不管一个单元格预测多少个边界框，其只预测一组类别概率值，这是Yolo算法的一个缺点，在后来的改进版本中，Yolo9000是把类别概率预测值与边界框是绑定在一起的**  
+边界框类别置信度（class-specific confidence scores）: ![](https://latex.codecogs.com/gif.latex?\inline&space;Pr(class_{i}|object)*Pr(object)*\text{IOU}^{truth}_{pred}=Pr(class_{i})*\text{IOU}^{truth}_{pred})   
 边界框类别置信度表征的是该边界框中目标属于各个类别的可能性大小以及边界框匹配目标的好坏，一般会根据类别置信度来过滤网络的预测框  
 
 **训练**  
@@ -384,17 +384,17 @@ Pr(class_{i}|object) ：对于每一个单元格其还要给出预测出 C 个�
 
 > **误差函数计算:**  
 > Yolo算法将目标检测看成回归问题，所以采用的是均方差损失函数。但是对不同的部分采用了不同的权重值。  
-> 首先区分定位误差和分类误差。对于定位误差，即边界框坐标预测误差，采用较大的权重 \lambda _{coord}=5 。然后其区分不包含目标的边界框与含有目标的边界框的置信度，对于前者，采用较小的权重值 \lambda _{noobj}=0.5 。其它权重值均设为1。然后采用均方误差，其同等对待大小不同的边界框，但是实际上较小的边界框的坐标误差应该要比较大的边界框要更敏感。为了保证这一点，将网络的边界框的宽与高预测改为对其平方根的预测，即预测值变为 (x,y,\sqrt{w}, \sqrt{h}) 。  
+> 首先区分定位误差和分类误差。对于定位误差，即边界框坐标预测误差，采用较大的权重 ![](https://latex.codecogs.com/gif.latex?\inline&space;\lambda&space;_{coord}=5) 。然后其区分不包含目标的边界框与含有目标的边界框的置信度，对于前者，采用较小的权重值 ![](https://latex.codecogs.com/gif.latex?\inline&space;\lambda&space;_{noobj}=0.5) 。其它权重值均设为1。然后采用均方误差，其同等对待大小不同的边界框，但是实际上较小的边界框的坐标误差应该要比较大的边界框要更敏感。为了保证这一点，将网络的边界框的宽与高预测改为对其平方根的预测，即预测值变为 ![](https://latex.codecogs.com/gif.latex?\inline&space;(x,y,\sqrt{w},&space;\sqrt{h}))。  
 >YOLO为每个网格单元预测多个边界框。在训练时，每个目标我们只需要一个边界框预测器来负责。若某预测器的预测值与目标的实际值的IOU值最高，则这个预测器被指定为“负责”预测该目标。这导致边界框预测器的专业化。每个预测器可以更好地预测特定大小，方向角，或目标的类别，从而改善整体召回率。但如果一个单元格内存在多个目标怎么办，其实这时候Yolo算法就只能选择其中一个来训练，这也是Yolo算法的缺点之一。  
 > 对于不存在对应目标的边界框，其误差项就是只有置信度，坐标项误差是没法计算的。而只有当一个单元格内确实存在目标时，才计算分类误差项，否则该项也是无法计算的。  
 > 综上讨论，最终的损失函数计算如下：  
 > ![](https://i.imgur.com/9YRbUIv.jpg)  
-> 1^{obj}_{ij} 指的是第 i 个单元格存在目标，且该单元格中的第 j 个边界框负责预测该目标  
-> 1^{obj}_{i} 指的是第 i 个单元格存在目标  
-> 置信度的target值 C_i ，如果是不存在目标，此时由于 Pr(object)=0，那么 C_i=0 。如果存在目标， Pr(object)=1 ，此时需要确定 \text{IOU}^{truth}_{pred} ，当然你希望最好的话，可以将IOU取1，这样 C_i=1 ，但是在YOLO实现中，使用了一个控制参数rescore（默认为1），当其为1时，IOU不是设置为1，而就是计算truth和pred之间的真实IOU。不过很多复现YOLO的项目还是取 C_i=1   
+> ![](https://latex.codecogs.com/gif.latex?\inline&space;1^{obj}_{ij}) 指的是第 i 个单元格存在目标，且该单元格中的第 j 个边界框负责预测该目标  
+> ![](https://latex.codecogs.com/gif.latex?\inline&space;1^{obj}_{i}) 指的是第 i 个单元格存在目标  
+> 置信度的target值 ![](https://latex.codecogs.com/gif.latex?\inline&space;C_i) ，如果是不存在目标，此时由于 Pr(object)=0，那么 ![](https://latex.codecogs.com/gif.latex?\inline&space;C_i=0) 。如果存在目标， Pr(object)=1 ，此时需要确定 ![](https://latex.codecogs.com/gif.latex?\inline&space;\text{IOU}^{truth}_{pred}) ，当然你希望最好的话，可以将IOU取1，这样 ![](https://latex.codecogs.com/gif.latex?\inline&space;C_i=1) ，但是在YOLO实现中，使用了一个控制参数rescore（默认为1），当其为1时，IOU不是设置为1，而就是计算truth和pred之间的真实IOU。不过很多复现YOLO的项目还是取 ![](https://latex.codecogs.com/gif.latex?\inline&space;C_i=1)   
 
 **网络预测**  
-对于一张输入图片。根据前面的分析，最终的网络输出是 7\times 7 \times 30 ，但是我们可以将其分割成三个部分：类别概率部分为 [7, 7, 20] ，置信度部分为 [7,7,2] ，而边界框部分为 [7,7,2,4] （对于这部分不要忘记根据原始图片计算出其真实值）。然后将前两项相乘（矩阵 [7, 7, 20] 乘以 [7,7,2] 可以各补一个维度来完成 [7,7,1,20]\times [7,7,2,1] ）可以得到类别置信度值为 [7, 7,2,20] ，这里总共预测了 7*7*2=98 个边界框  
+对于一张输入图片。根据前面的分析，最终的网络输出是 ![](https://latex.codecogs.com/gif.latex?\inline&space;7\times&space;7&space;\times&space;30) ，但是我们可以将其分割成三个部分：类别概率部分为 [7, 7, 20] ，置信度部分为 [7,7,2] ，而边界框部分为 [7,7,2,4] （对于这部分不要忘记根据原始图片计算出其真实值）。然后将前两项相乘（矩阵 [7, 7, 20] 乘以 [7,7,2] 可以各补一个维度来完成 [7,7,1,20] x [7,7,2,1] ）可以得到类别置信度值为 [7, 7,2,20] ，这里总共预测了 7*7*2=98 个边界框  
 
 网格设计强化了边界框预测中的空间多样性。通常一个目标落在哪一个网格单元中是很明显的，而网络只能为每个目标预测一个边界框。然而，一些大的目标或接近多个网格单元的边界的目标能被多个网格单元定位。非极大值抑制可以用来修正这些多重检测。
 
@@ -414,17 +414,17 @@ YOLOv1在物体定位方面（localization）不够准确，并且召回率（re
 Batch Normalization可以提升模型收敛速度，而且可以起到一定正则化效果，降低模型的过拟合。在YOLOv2中，每个卷积层后面都添加了Batch Normalization层，并且不再使用droput。使用Batch Normalization后，YOLOv2的mAP提升了2.4%。  
 
 **高分辨率分类器 High Resolution Classifier**  
-目前大部分的检测模型都会在先在ImageNet分类数据集上预训练模型的主体部分（CNN特征提取器），由于历史原因，ImageNet分类模型基本采用大小为 224\times224 的图片作为输入，分辨率相对较低，不利于检测模型  
-YOLOv1在采用 224\times224 分类模型预训练后，将分辨率增加至 448\times448 ，并使用这个高分辨率在检测数据集上finetune。但是直接切换分辨率，检测模型可能难以快速适应高分辨率。  
-YOLOv2增加了在ImageNet数据集上使用 448\times448 输入来finetune分类网络这一中间过程（10 epochs），这可以使得模型在检测数据集上finetune之前已经适用高分辨率输入。使用高分辨率分类器后，YOLOv2的mAP提升了约4%。  
+目前大部分的检测模型都会在先在ImageNet分类数据集上预训练模型的主体部分（CNN特征提取器），由于历史原因，ImageNet分类模型基本采用大小为 224 x 224 的图片作为输入，分辨率相对较低，不利于检测模型  
+YOLOv1在采用 224x224 分类模型预训练后，将分辨率增加至 448x448 ，并使用这个高分辨率在检测数据集上finetune。但是直接切换分辨率，检测模型可能难以快速适应高分辨率。  
+YOLOv2增加了在ImageNet数据集上使用 448x448 输入来finetune分类网络这一中间过程（10 epochs），这可以使得模型在检测数据集上finetune之前已经适用高分辨率输入。使用高分辨率分类器后，YOLOv2的mAP提升了约4%。  
 
 **使用anchor boxs进行卷积(Convolutional With Anchor Boxes)**  
 在YOLOv1中，输入图片最终被划分为 7\times7 网格，每个单元格预测2个边界框。YOLOv1最后采用的是全连接层直接对边界框进行预测，其中边界框的宽与高是相对整张图片大小的，而由于各个图片中存在不同尺度和长宽比（scales and ratios）的物体，YOLOv1在训练过程中学习适应不同物体的形状是比较困难的，这也导致YOLOv1在精确定位方面表现较差  
 YOLOv2借鉴了Faster R-CNN中RPN网络的先验框（anchor boxes，prior boxes，SSD也采用了先验框）策略。RPN对CNN特征提取器得到的特征图（feature map）进行卷积来预测每个位置的边界框以及置信度（是否含有物体），并且各个位置设置不同尺度和比例的先验框，所以RPN预测的是边界框相对于先验框的offsets值，采用先验框使得模型更容易学习。所以YOLOv2移除了YOLOv1中的全连接层而采用了卷积和anchor boxes来预测边界框。  
 为了使检测所用的特征图分辨率更高，移除其中的一个pool层。  
-在检测模型中，YOLOv2不是采用 448\times448 图片作为输入，而是采用 416\times416 大小。因为YOLOv2模型下采样的总步长为32 ，对于 416\times416 大小的图片，最终得到的特征图大小为 13\times13 ，维度是奇数，这样特征图恰好只有一个中心位置。对于一些大物体，它们中心点往往落入图片中心位置，此时使用特征图的一个中心点去预测这些物体的边界框相对容易些。所以在YOLOv2设计中要保证最终的特征图有奇数个位置。  
+在检测模型中，YOLOv2不是采用 448x448 图片作为输入，而是采用 416x416 大小。因为YOLOv2模型下采样的总步长为32 ，对于 416x416 大小的图片，最终得到的特征图大小为 13x13 ，维度是奇数，这样特征图恰好只有一个中心位置。对于一些大物体，它们中心点往往落入图片中心位置，此时使用特征图的一个中心点去预测这些物体的边界框相对容易些。所以在YOLOv2设计中要保证最终的特征图有奇数个位置。  
 对于YOLOv1，每个cell都预测2个boxes，每个boxes包含5个值： (x, y, w, h, c) ，前4个值是边界框位置与大小，最后一个值是置信度（confidence scores，包含两部分：含有物体的概率以及预测框与ground truth的IOU）。但是每个cell只预测一套分类概率值（class predictions，其实是置信度下的条件概率值）,供2个boxes共享。YOLOv2使用了anchor boxes之后，每个位置的各个anchor box都单独预测一套分类概率值，这和SSD比较类似（但SSD没有预测置信度，而是把background作为一个类别来处理）  
-使用anchor boxes之后，YOLOv2的mAP有稍微下降（这里下降的原因，猜想是YOLOv2虽然使用了anchor boxes，但是依然采用YOLOv1的训练方法）。YOLOv1只能预测98个边界框（ 7\times7\times2 ），而YOLOv2使用anchor boxes之后可以预测上千个边界框（ 13\times13\times\text{num_anchors} ）。所以使用anchor boxes之后，YOLOv2的召回率大大提升，由原来的81%升至88%。  
+使用anchor boxes之后，YOLOv2的mAP有稍微下降（这里下降的原因，猜想是YOLOv2虽然使用了anchor boxes，但是依然采用YOLOv1的训练方法）。YOLOv1只能预测98个边界框（ 7x7x2 ），而YOLOv2使用anchor boxes之后可以预测上千个边界框（ 13x13xnum_anchors ）。所以使用anchor boxes之后，YOLOv2的召回率大大提升，由原来的81%升至88%。  
 
 **尺度聚类（Dimension Clusters）**  
 在Faster R-CNN和SSD中，先验框的维度（长和宽）都是手动设定的，带有一定的主观性。如果选取的先验框维度比较合适，那么模型更容易学习，从而做出更好的预测。因此，YOLOv2采用k-means聚类方法对训练集中的边界框做了聚类分析。因为设置先验框的主要目的是为了使得预测框与ground truth的IOU更好，所以聚类分析时选用box与聚类中心box之间的IOU值作为距离指标  
@@ -433,47 +433,47 @@ d(box, centroid) = 1 - IOU(box, centroid)
 > COCO: (0.57273, 0.677385), (1.87446, 2.06253), (3.33843, 5.47434), (7.88282, 3.52778), (9.77052, 9.16828)  
 VOC: (1.3221, 1.73145), (3.19275, 4.00944), (5.05587, 8.09892), (9.47112, 4.84053), (11.2364, 10.0071)   
 
-这里先验框的大小是相对于预测的特征图大小（ 13\times13 ）,对比两个数据集，也可以看到COCO数据集上的物体相对小点。   
+这里先验框的大小是相对于预测的特征图大小（ 13x13 ）,对比两个数据集，也可以看到COCO数据集上的物体相对小点。   
 ![](https://i.imgur.com/eynWhEf.jpg)  
 
 **New Network: Darknet-19**  
-YOLOv2采用了一个新的基础模型（特征提取器），称为Darknet-19，包括19个卷积层和5个maxpooling层，如图所示。Darknet-19与VGG16模型设计原则是一致的，主要采用 3\times3 卷积，采用 2\times2 的maxpooling层之后，特征图维度降低2倍，而同时将特征图的channles增加两倍。与NIN(Network in Network)类似，Darknet-19最终采用global avgpooling做预测，并且在 3\times3 卷积之间使用 1\times1 卷积来压缩特征图channles以降低模型计算量和参数。Darknet-19每个卷积层后面同样使用了batch norm层以加快收敛速度，降低模型过拟合。在ImageNet分类数据集上，Darknet-19的top-1准确度为72.9%，top-5准确度为91.2%，但是模型参数相对小一些。使用Darknet-19之后，YOLOv2的mAP值没有显著提升，但是计算量却可以减少约33%。  
+YOLOv2采用了一个新的基础模型（特征提取器），称为Darknet-19，包括19个卷积层和5个maxpooling层，如图所示。Darknet-19与VGG16模型设计原则是一致的，主要采用 3x3 卷积，采用 2x2 的maxpooling层之后，特征图维度降低2倍，而同时将特征图的channles增加两倍。与NIN(Network in Network)类似，Darknet-19最终采用global avgpooling做预测，并且在 3x3 卷积之间使用 1x1 卷积来压缩特征图channles以降低模型计算量和参数。Darknet-19每个卷积层后面同样使用了batch norm层以加快收敛速度，降低模型过拟合。在ImageNet分类数据集上，Darknet-19的top-1准确度为72.9%，top-5准确度为91.2%，但是模型参数相对小一些。使用Darknet-19之后，YOLOv2的mAP值没有显著提升，但是计算量却可以减少约33%。  
 ![](https://i.imgur.com/eR8zyqz.jpg)   
 
 **直接位置预测(Direct location prediction)**  
 YOLOv2借鉴RPN网络使用anchor boxes来预测边界框相对先验框的offsets。边界框的实际中心位置 (x,y) ，需要根据预测的坐标偏移值 (t_x, t_y) ，先验框的尺度 (w_a, h_a) 以及中心坐标 (x_a, y_a) （特征图每个位置的中心点）来计算：  
-\\x = (t_x\times w_a)-x_a  
-\\y=(t_y\times h_a) - y_a  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\x&space;=&space;(t_x\times&space;w_a)-x_a)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\y=(t_y\times&space;h_a)&space;-&space;y_a)  
 但是上面的公式是无约束的，预测的边界框很容易向任何方向偏移，如当 t_x=1 时边界框将向右偏移先验框的一个宽度大小，而当 t_x=-1 时边界框将向左偏移先验框的一个宽度大小，因此每个位置预测的边界框可以落在图片任何位置，这导致模型的不稳定性，在训练时需要很长时间来预测出正确的offsets。  
 所以，YOLOv2弃用了这种预测方式，而是沿用YOLOv1的方法，就是预测边界框中心点相对于对应cell左上角位置的相对偏移值，为了将边界框中心点约束在当前cell中，使用sigmoid函数处理偏移值，这样预测的偏移值在(0,1)范围内（每个cell的尺度看做1）  
 总结来看，根据边界框预测的4个offsets t_x, t_y, t_w, t_h ，可以按如下公式计算出边界框实际位置和大小：  
-\\b_x = \sigma (t_x)+c_x  
-\\b_y = \sigma (t_y) + c_y  
-\\b_w = p_we^{t_w}  
-\\b_h = p_he^{t_h}  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_x&space;=&space;\sigma&space;(t_x)&plus;c_x) 
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_y&space;=&space;\sigma&space;(t_y)&space;&plus;&space;c_y)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_w&space;=&space;p_we^{t_w})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_h&space;=&space;p_he^{t_h})  
 其中 (c_x, x_y) 为cell的左上角坐标，如下图所示，在计算时每个cell的尺度为1，所以当前cell的左上角坐标为 (1,1) 。由于sigmoid函数的处理，边界框的中心位置会约束在当前cell内部，防止偏移过多。p_w 和 p_h 是先验框的宽度与长度，它们的值也是相对于特征图大小的    
 ![](https://i.imgur.com/tNVTJHo.jpg)   
 记特征图的大小为 (W, H) （在文中是 (13, 13) )，这样我们可以将边界框相对于整张图片的位置和大小计算出来（4个值均在0和1之间）：  
-\\b_x = (\sigma (t_x)+c_x)/W  
-\\ b_y = (\sigma (t_y) + c_y)/H  
-\\b_w = p_we^{t_w}/W  
-\\b_h = p_he^{t_h}/H  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_x&space;=&space;(\sigma&space;(t_x)&plus;c_x)/W)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\&space;b_y&space;=&space;(\sigma&space;(t_y)&space;&plus;&space;c_y)/H)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_w&space;=&space;p_we^{t_w}/W)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_h&space;=&space;p_he^{t_h}/H)  
 将上面的4个值分别乘以图片的宽度和长度（像素点值）就可以得到边界框的最终位置和大小了。这就是YOLOv2边界框的整个解码过程。约束了边界框的位置预测值使得模型更容易稳定训练，结合聚类分析得到先验框与这种预测方法，YOLOv2的mAP值提升了约5%。  
 
 **细粒度特征(Fine-Grained Features)**  
-YOLOv2的输入图片大小为 416\times416 ，经过5次maxpooling之后得到 13\times13 大小的特征图，并以此特征图采用卷积做预测。 13\times13 大小的特征图对检测大物体是足够了，但是对于小物体还需要更精细的特征图（Fine-Grained Features）。因此SSD使用了多尺度的特征图来分别检测不同大小的物体，前面更精细的特征图可以用来预测小物体。YOLOv2提出了一种passthrough层来利用更精细的特征图。YOLOv2所利用的Fine-Grained Features是 26\times26 大小的特征图（最后一个maxpooling层的输入），对于Darknet-19模型来说就是大小为 26\times26\times512 的特征图。passthrough层与ResNet网络的shortcut类似，以前面更高分辨率的特征图为输入，然后将其连接到后面的低分辨率特征图上。前面的特征图维度是后面的特征图的2倍，passthrough层抽取前面层的每个 2\times2 的局部区域，然后将其转化为channel维度，对于 26\times26\times512 的特征图，经passthrough层处理之后就变成了 13\times13\times2048 的新特征图（特征图大小降低4倍，而channles增加4倍，图6为一个实例），这样就可以与后面的 13\times13\times1024 特征图连接在一起形成 13\times13\times3072 大小的特征图，然后在此特征图基础上卷积做预测。在YOLO的C源码中，passthrough层称为reorg layer。在TensorFlow中，可以使用tf.extract_image_patches或者tf.space_to_depth来实现passthrough层：  
+YOLOv2的输入图片大小为 416x416 ，经过5次maxpooling之后得到 13x13 大小的特征图，并以此特征图采用卷积做预测。 13x13 大小的特征图对检测大物体是足够了，但是对于小物体还需要更精细的特征图（Fine-Grained Features）。因此SSD使用了多尺度的特征图来分别检测不同大小的物体，前面更精细的特征图可以用来预测小物体。YOLOv2提出了一种passthrough层来利用更精细的特征图。YOLOv2所利用的Fine-Grained Features是 26x26 大小的特征图（最后一个maxpooling层的输入），对于Darknet-19模型来说就是大小为 26x26x512 的特征图。passthrough层与ResNet网络的shortcut类似，以前面更高分辨率的特征图为输入，然后将其连接到后面的低分辨率特征图上。前面的特征图维度是后面的特征图的2倍，passthrough层抽取前面层的每个 2x2 的局部区域，然后将其转化为channel维度，对于 26x26x512 的特征图，经passthrough层处理之后就变成了 13x13x2048 的新特征图（特征图大小降低4倍，而channles增加4倍，图6为一个实例），这样就可以与后面的 13x13x1024 特征图连接在一起形成 13x13x3072 大小的特征图，然后在此特征图基础上卷积做预测。在YOLO的C源码中，passthrough层称为reorg layer。在TensorFlow中，可以使用tf.extract_image_patches或者tf.space_to_depth来实现passthrough层：  
 
 	out = tf.extract_image_patches(in, [1, stride, stride, 1], [1, stride, stride, 1], [1,1,1,1], padding="VALID")  
 	// or use tf.space_to_depth  
 	out = tf.space_to_depth(in, 2)    
 passthrough层实例：  
 ![](https://i.imgur.com/3w5lJJ0.jpg)  
-另外，作者在后期的实现中借鉴了ResNet网络，不是直接对高分辨特征图处理，而是增加了一个中间卷积层，先采用64个 1\times1 卷积核进行卷积，然后再进行passthrough处理，这样 26\times26\times512 的特征图得到 13\times13\times256 的特征图。这算是实现上的一个小细节。使用Fine-Grained Features之后YOLOv2的性能有1%的提升。  
+另外，作者在后期的实现中借鉴了ResNet网络，不是直接对高分辨特征图处理，而是增加了一个中间卷积层，先采用64个 1x1 卷积核进行卷积，然后再进行passthrough处理，这样 26x26x512 的特征图得到 13x13x256 的特征图。这算是实现上的一个小细节。使用Fine-Grained Features之后YOLOv2的性能有1%的提升。  
 
 **多尺度训练(Multi-Scale Training)**  
-由于YOLOv2模型中只有卷积层和池化层，所以YOLOv2的输入可以不限于 416\times416 大小的图片。为了增强模型的鲁棒性，YOLOv2采用了多尺度输入训练策略，具体来说就是在训练过程中每间隔一定的iterations之后改变模型的输入图片大小。由于YOLOv2的下采样总步长为32，输入图片大小选择一系列为32倍数的值： \{320, 352,..., 608\} ，输入图片最小为 320\times320 ，此时对应的特征图大小为 10\times10 （不是奇数了，确实有点尴尬），而输入图片最大为 608\times608 ，对应的特征图大小为 19\times19 。在训练过程，每隔10个iterations随机选择一种输入图片大小，然后只需要修改对最后检测层的处理就可以重新训练。  
+由于YOLOv2模型中只有卷积层和池化层，所以YOLOv2的输入可以不限于 416x416 大小的图片。为了增强模型的鲁棒性，YOLOv2采用了多尺度输入训练策略，具体来说就是在训练过程中每间隔一定的iterations之后改变模型的输入图片大小。由于YOLOv2的下采样总步长为32，输入图片大小选择一系列为32倍数的值： {320, 352,..., 608} ，输入图片最小为 320x320 ，此时对应的特征图大小为 10xs10 （不是奇数了，确实有点尴尬），而输入图片最大为 608x608 ，对应的特征图大小为 19x19 。在训练过程，每隔10个iterations随机选择一种输入图片大小，然后只需要修改对最后检测层的处理就可以重新训练。  
 ![](https://i.imgur.com/vr3bcxZ.jpg)  
-采用Multi-Scale Training策略，YOLOv2可以适应不同大小的图片，并且预测出很好的结果。在测试时，YOLOv2可以采用不同大小的图片作为输入，在VOC 2007数据集上的效果如下图所示。可以看到采用较小分辨率时，YOLOv2的mAP值略低，但是速度更快，而采用高分辨输入时，mAP值更高，但是速度略有下降，对于 544\times544 ，mAP高达78.6%。注意，这只是测试时输入图片大小不同，而实际上用的是同一个模型（采用Multi-Scale Training训练）。   
+采用Multi-Scale Training策略，YOLOv2可以适应不同大小的图片，并且预测出很好的结果。在测试时，YOLOv2可以采用不同大小的图片作为输入，在VOC 2007数据集上的效果如下图所示。可以看到采用较小分辨率时，YOLOv2的mAP值略低，但是速度更快，而采用高分辨输入时，mAP值更高，但是速度略有下降，对于 544x544 ，mAP高达78.6%。注意，这只是测试时输入图片大小不同，而实际上用的是同一个模型（采用Multi-Scale Training训练）。   
 
 
 > **总结来看，虽然YOLOv2做了很多改进，但是大部分都是借鉴其它论文的一些技巧，如Faster R-CNN的anchor boxes，YOLOv2采用anchor boxes和卷积做预测，这基本上与SSD模型（单尺度特征图的SSD）非常类似了，而且SSD也是借鉴了Faster R-CNN的RPN网络。从某种意义上来说，YOLOv2和SSD这两个one-stage模型与RPN网络本质上无异，只不过RPN不做类别的预测，只是简单地区分物体与背景。在two-stage方法中，RPN起到的作用是给出region proposals，其实就是作出粗糙的检测，所以另外增加了一个stage，即采用R-CNN网络来进一步提升检测的准确度（包括给出类别预测）。而对于one-stage方法，它们想要一步到位，直接采用“RPN”网络作出精确的预测，要因此要在网络设计上做很多的tricks。YOLOv2的一大创新是采用Multi-Scale Training策略，这样同一个模型其实就可以适应多种大小的图片了。**  
@@ -481,9 +481,9 @@ passthrough层实例：
 
 **训练**  
 YOLOv2的训练主要包括三个阶段:  
-第一阶段就是先在ImageNet分类数据集上预训练Darknet-19，此时模型输入为 224\times224 ，共训练160个epochs。  
-第二阶段将网络的输入调整为 448\times448 ，继续在ImageNet数据集上finetune分类模型，训练10个epochs，此时分类模型的top-1准确度为76.5%，而top-5准确度为93.3%。  
-第三个阶段就是修改Darknet-19分类模型为检测模型，并在检测数据集上继续finetune网络。网络修改包括（网路结构可视化）：移除最后一个卷积层、global avgpooling层以及softmax层，并且新增了三个 3\times3\times2014卷积层，同时增加了一个passthrough层，最后使用 1\times1 卷积层输出预测结果，输出的channels数为： \text{num_anchors}\times(5+\text{num_classes}) ，和训练采用的数据集有关系。由于anchors数为5，对于VOC数据集输出的channels数就是125，而对于COCO数据集则为425。这里以VOC数据集为例，最终的预测矩阵为 T （shape为 (\text{batch_size}, 13, 13, 125) ），可以先将其reshape为 (\text{batch_size}, 13, 13, 5, 25) ，其中 T[:, :, :, :, 0:4] 为边界框的位置和大小 (t_x, t_y, t_w, t_h) ， T[:, :, :, :, 4] 为边界框的置信度，而 T[:, :, :, :, 5:] 为类别预测值。  
+第一阶段就是先在ImageNet分类数据集上预训练Darknet-19，此时模型输入为 224x224 ，共训练160个epochs。  
+第二阶段将网络的输入调整为 448x448 ，继续在ImageNet数据集上finetune分类模型，训练10个epochs，此时分类模型的top-1准确度为76.5%，而top-5准确度为93.3%。  
+第三个阶段就是修改Darknet-19分类模型为检测模型，并在检测数据集上继续finetune网络。网络修改包括（网路结构可视化）：移除最后一个卷积层、global avgpooling层以及softmax层，并且新增了三个 3x3x2014卷积层，同时增加了一个passthrough层，最后使用 1x1 卷积层输出预测结果，输出的channels数为： num_anchors x (5 + num_classes) ，和训练采用的数据集有关系。由于anchors数为5，对于VOC数据集输出的channels数就是125，而对于COCO数据集则为425。这里以VOC数据集为例，最终的预测矩阵为 T （shape为 (batch_size, 13, 13, 125) ），可以先将其reshape为 (batch_size, 13, 13, 5, 25) ，其中 T[:, :, :, :, 0:4] 为边界框的位置和大小 ![](https://latex.codecogs.com/gif.latex?\inline&space;(t_x,&space;t_y,&space;t_w,&space;t_h)) ， T[:, :, :, :, 4] 为边界框的置信度，而 T[:, :, :, :, 5:] 为类别预测值。  
 训练三个阶段图示：  
 ![](https://i.imgur.com/irDEhjr.jpg)  
 yolov2网络结构示意图：  
@@ -496,8 +496,8 @@ yolov2网络结构示意图：
 > 与ground truth匹配的先验框计算坐标误差、置信度误差（此时target为1）以及分类误差，而其它的边界框只计算置信度误差（此时target为0）。YOLOv2和YOLOv1的损失函数一样，为均方差函数。  
 > loss计算公式:  
 > ![](https://i.imgur.com/onmwokg.jpg)  
-> W, H 分别指的是特征图（ 13\times13 ）的宽与高，而 A 指的是先验框数目（这里是5）  
-> 各个 \lambda 值是各个loss部分的权重系数  
+> W, H 分别指的是特征图（ 13x13 ）的宽与高，而 A 指的是先验框数目（这里是5）  
+> 各个 ![](https://latex.codecogs.com/gif.latex?\inline&space;\lambda) 值是各个loss部分的权重系数  
 > 第一项loss是计算background的置信度误差，但是哪些预测框来预测背景呢，需要先计算各个预测框和所有ground truth的IOU值，并且取最大值Max_IOU，如果该值小于一定的阈值（YOLOv2使用的是0.6），那么这个预测框就标记为background，需要计算noobj的置信度误差。   
 > 第二项是计算先验框与预测框的坐标误差，但是只在前12800个iterations间计算，我觉得这项应该是在训练前期使预测框快速学习到先验框的形状  
 > 第三大项计算与某个ground truth匹配的预测框各部分loss值，包括坐标误差、置信度误差以及分类误差  
@@ -513,3 +513,6 @@ WordTree中的根节点为"physical object"，每个节点的子节点都属于�
 在训练时，如果是检测样本，按照YOLOv2的loss计算误差，而对于分类样本，只计算分类误差。在预测时，YOLOv2给出的置信度就是 Pr(physical \space object) ，同时会给出边界框位置以及一个树状概率图。在这个概率图中找到概率最高的路径，当达到某一个阈值时停止，就用当前节点表示预测的类别。
 
 通过联合训练策略，YOLO9000可以快速检测出超过9000个类别的物体，总体mAP值为19,7%。我觉得这是作者在这篇论文作出的最大的贡献，因为YOLOv2的改进策略亮点并不是很突出，但是YOLO9000算是开创之举。  
+
+## yolov3
+
