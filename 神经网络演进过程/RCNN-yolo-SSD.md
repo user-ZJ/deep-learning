@@ -291,7 +291,7 @@ SSD网络中选取不同大小的feature map用来检测目标，在feature map�
 ### 先验框中心点计算
 每个单元的先验框的中心点分布在各个单元的中心，即   
 ![](https://latex.codecogs.com/gif.latex?(\frac{i&plus;0.5}{|f_k|},\frac{j&plus;0.5}{|f_k|}),)  
-![](https://latex.codecogs.com/gif.latex?i,j\in[0,&space;|f_k|)&space;，)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;i,j\in[0,&space;|f_k|])  
 其中 ![](https://latex.codecogs.com/gif.latex?|f_k|) 为特征图的大小。 
 
 ### 预测过程
@@ -302,7 +302,7 @@ SSD网络中选取不同大小的feature map用来检测目标，在feature map�
 1. 先验框生成：Priorbox是生成先验框option   
 2. 计算预测框location：采用一次 ![](https://latex.codecogs.com/gif.latex?3\times3) 卷积来进行完成  
 3. 计算类别置信度：采用一次 ![](https://latex.codecogs.com/gif.latex?3\times3) 卷积来进行完成  
-令 ![](https://latex.codecogs.com/gif.latex?n_k) 为该特征图所采用的先验框数目，那么类别置信度需要的卷积核数量为 n_k\times c ，而边界框位置需要的卷积核数量为 ![](https://latex.codecogs.com/gif.latex?n_k\times&space;4) 。  
+令 ![](https://latex.codecogs.com/gif.latex?n_k) 为该特征图所采用的先验框数目，那么类别置信度需要的卷积核数量为 ![](https://latex.codecogs.com/gif.latex?\inline&space;n_k\times&space;c) ，而边界框位置需要的卷积核数量为 ![](https://latex.codecogs.com/gif.latex?n_k\times&space;4) 。  
 由于每个先验框都会预测一个边界框，所以SSD300一共可以预测 ![](https://latex.codecogs.com/gif.latex?38\times38\times4&plus;19\times19\times6&plus;10\times10\times6&plus;5\times5\times6&plus;3\times3\times4&plus;1\times1\times4=8732) 个边界框，这是一个相当庞大的数字，所以说SSD本质上是密集采样。  
 
 对于每个预测框，首先根据类别置信度确定其类别（置信度最大者）与置信度值，并过滤掉属于背景的预测框。然后根据置信度阈值（如0.5）过滤掉阈值较低的预测框。对于留下的预测框进行解码，根据先验框得到其真实的位置参数（解码后一般还需要做clip，防止预测框位置超出图片）。解码之后，一般需要根据置信度进行降序排列，然后仅保留top-k（如400）个预测框。最后就是进行NMS算法，过滤掉那些重叠度较大的预测框。最后剩余的预测框就是检测结果了。  
@@ -442,22 +442,22 @@ YOLOv2采用了一个新的基础模型（特征提取器），称为Darknet-19�
 
 **直接位置预测(Direct location prediction)**  
 YOLOv2借鉴RPN网络使用anchor boxes来预测边界框相对先验框的offsets。边界框的实际中心位置 (x,y) ，需要根据预测的坐标偏移值 (t_x, t_y) ，先验框的尺度 (w_a, h_a) 以及中心坐标 (x_a, y_a) （特征图每个位置的中心点）来计算：  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\x&space;=&space;(t_x\times&space;w_a)-x_a)  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\y=(t_y\times&space;h_a)&space;-&space;y_a)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;x&space;=&space;(t_x\times&space;w_a)-x_a)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;y=(t_y\times&space;h_a)&space;-&space;y_a)  
 但是上面的公式是无约束的，预测的边界框很容易向任何方向偏移，如当 t_x=1 时边界框将向右偏移先验框的一个宽度大小，而当 t_x=-1 时边界框将向左偏移先验框的一个宽度大小，因此每个位置预测的边界框可以落在图片任何位置，这导致模型的不稳定性，在训练时需要很长时间来预测出正确的offsets。  
 所以，YOLOv2弃用了这种预测方式，而是沿用YOLOv1的方法，就是预测边界框中心点相对于对应cell左上角位置的相对偏移值，为了将边界框中心点约束在当前cell中，使用sigmoid函数处理偏移值，这样预测的偏移值在(0,1)范围内（每个cell的尺度看做1）  
 总结来看，根据边界框预测的4个offsets t_x, t_y, t_w, t_h ，可以按如下公式计算出边界框实际位置和大小：  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_x&space;=&space;\sigma&space;(t_x)&plus;c_x) 
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_y&space;=&space;\sigma&space;(t_y)&space;&plus;&space;c_y)  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_w&space;=&space;p_we^{t_w})  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_h&space;=&space;p_he^{t_h})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_x&space;=&space;\sigma&space;(t_x)&plus;c_x)   
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_y&space;=&space;\sigma&space;(t_y)&space;&plus;&space;c_y)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_w&space;=&space;p_we^{t_w})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_h&space;=&space;p_he^{t_h})  
 其中 (c_x, x_y) 为cell的左上角坐标，如下图所示，在计算时每个cell的尺度为1，所以当前cell的左上角坐标为 (1,1) 。由于sigmoid函数的处理，边界框的中心位置会约束在当前cell内部，防止偏移过多。p_w 和 p_h 是先验框的宽度与长度，它们的值也是相对于特征图大小的    
 ![](https://i.imgur.com/tNVTJHo.jpg)   
 记特征图的大小为 (W, H) （在文中是 (13, 13) )，这样我们可以将边界框相对于整张图片的位置和大小计算出来（4个值均在0和1之间）：  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_x&space;=&space;(\sigma&space;(t_x)&plus;c_x)/W)  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\&space;b_y&space;=&space;(\sigma&space;(t_y)&space;&plus;&space;c_y)/H)  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_w&space;=&space;p_we^{t_w}/W)  
-![](https://latex.codecogs.com/gif.latex?\inline&space;\\b_h&space;=&space;p_he^{t_h}/H)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_x&space;=&space;(\sigma&space;(t_x)&plus;c_x)/W)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;&space;b_y&space;=&space;(\sigma&space;(t_y)&space;&plus;&space;c_y)/H)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_w&space;=&space;p_we^{t_w}/W)  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_h&space;=&space;p_he^{t_h}/H)  
 将上面的4个值分别乘以图片的宽度和长度（像素点值）就可以得到边界框的最终位置和大小了。这就是YOLOv2边界框的整个解码过程。约束了边界框的位置预测值使得模型更容易稳定训练，结合聚类分析得到先验框与这种预测方法，YOLOv2的mAP值提升了约5%。  
 
 **细粒度特征(Fine-Grained Features)**  
