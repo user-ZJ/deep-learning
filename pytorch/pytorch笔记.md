@@ -10,6 +10,7 @@
 
 # 数据类型转换
 	images.type(torch.FloatTensor)
+	images.float()
 
 # Reshape
 	# swap color axis because  
@@ -23,6 +24,7 @@
 池化层：nn.MaxPool2d  
 flatten操作：x = x.view(x.size(0), -1)  
 dropout：self.fc_drop = nn.Dropout(p=0.4) 
+LSTM:nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers)  
 损失函数：criterion = nn.MSELoss()  
 优化器：optimizer = optim.Adam(net.parameters(), lr=0.01)  
 
