@@ -516,3 +516,31 @@ WordTree中的根节点为"physical object"，每个节点的子节点都属于�
 
 ## yolov3
 
+### 边界框预测（Bounding Box Prediction）  
+在YOLO9000后，我们的系统开始用dimension clusters固定anchor box来选定边界框。神经网络会为每个边界框预测4个坐标：tx、ty、tw、th。如果目标cell距离图像左上角的边距是（cx, cy），且它对应边界框的宽和高为pw、ph，那么网络的预测值会是：  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_{x}&space;=&space;\sigma(t_{x})&plus;c_{x})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_{y}&space;=&space;\sigma(t_{y})&plus;c_{y})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_{w}&space;=&space;p_{w}e^{t_{w}})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;b_{h}&space;=&space;p_{h}e^{t_{h}})  
+![](https://latex.codecogs.com/gif.latex?\inline&space;Pr(object)\ast&space;IOU(b,object)=&space;\sigma(t_{o}))  
+![](https://i.imgur.com/VR1VxzW.png)   
+在训练期间，我们会计算方差。如果预测坐标的ground truth是![](https://latex.codecogs.com/gif.latex?\inline&space;\hat{t_{*}})，那相应的梯度就是ground truth值和预测值的差：![](https://latex.codecogs.com/gif.latex?\inline&space;\hat{t_{*}})-![](https://latex.codecogs.com/gif.latex?\inline&space;t_{*})。利用上述公式，我们能轻松推出这个结论。    
+YOLOv3用逻辑回归预测每个边界框的objectness score。如果当前预测的边界框比之前的更好地与ground truth对象重合，那它的分数就是1。如果当前的预测不是最好的，但它和ground truth对象重合到了一定阈值以上，神经网络会忽视这个预测。我们使用的阈值是0.5。与Faster rcnn不同，我们的系统只为每个ground truth对象分配一个边界框。如果先前的边界框并未分配给相应对象，那它只是检测错了对象，而不会对坐标或分类预测造成影响。  
+
+### 分类预测(Class Prediction)  
+每个边界框都会使用多标记分类来预测框中可能包含的类。我们不用softmax，而是用单独的逻辑分类器，因为我们发现前者对于提升网络性能没什么用。在训练过程中，我们用二元交叉熵损失来预测类别。   
+这个选择有助于我们把YOLO用于更复杂的领域，如Open Images Dataset 。这个数据集中包含了大量重叠的标签（如女性和人）。如果我们用的是softmax，它会强加一个假设，使得每个框只包含一个类别。但通常情况下这样做是不妥的，相比之下，多标记的分类方法能更好地模拟数据。   
+
+### 跨尺寸预测(Predictions Across Scales)  
+YOLOv3提供了3种尺寸不一的边界框。我们的系统用相似的概念提取这些尺寸的特征，以形成金字塔形网络。我们在基本特征提取器中增加了几个卷积层，并用最后的卷积层预测一个三维张量编码：边界框、框中目标和分类预测。在COCO数据集实验中，我们的神经网络分别为每种尺寸各预测了3个边界框，所以得到的张量是N ×N ×[3∗(4+ 1+ 80)]，其中包含4个边界框offset、1个目标预测以及80种分类预测。   
+接着，我们从前两个图层中得到特征图，并对它进行2次上采样。再从网络更早的图层中获得特征图，用element-wise把高低两种分辨率的特征图连接到一起。这样做能使我们找到早期特征映射中的上采样特征和细粒度特征，并获得更有意义的语义信息。之后，我们添加几个卷积层来处理这个特征映射组合，并最终预测出一个相似的、大小是原先两倍的张量。  
+我们用同样的网络设计来预测边界框的最终尺寸，这个过程其实也有助于分类预测，因为我们可以从早期图像中筛选出更精细的特征。  
+和上一版一样，YOLOv3使用的聚类方法还是K-Means，它能用来确定边界框的先验。在实验中，我们选择了9个聚类和3个尺寸，然后在不同尺寸的边界框上均匀分割维度聚类。在COCO数据集上，这9个聚类分别是：(10×13)、(16×30)、(33×23)、(30×61)、(62×45)、(59×119)、(116 × 90)、(156 × 198)、(373 × 326)。  
+
+### 特征提取(Feature Extractor)  
+这次我们用了一个新的网络来提取特征，它融合了YOLOv2、Darknet-19以及其他新型残差网络，由连续的3×3和1×1卷积层组合而成，当然，其中也添加了一些shortcut connection，整体体量也更大。因为一共有53个卷积层，所以我们称它为Darknet-53,这个新型网络在性能上远超Darknet-19，但在效率上同样优于ResNet-101和ResNet-152    
+![](https://i.imgur.com/N1Z3DTi.png)  ![](https://i.imgur.com/FvuZ0jA.png)   
+
+### 我们做了什么(How We Do)  
+YOLOv3的表现非常好！请参见表3，就COCO数据集的平均mAP成绩而言，它与SSD变体相当，但速度提高了3倍。尽管如此，它仍然比像RetinaNet这样的模型要差一点。  
+![](https://i.imgur.com/tUHjfOa.png)   
