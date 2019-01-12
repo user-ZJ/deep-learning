@@ -371,8 +371,7 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 		saver.restore(sess, ckpt.model_checkpoint_path) #加载checkpoint中记录的模型 
 
 方法2：不需重新定义网络结构  
-
-	saver = tf.train.Saver()	
+	
 	with tf.Session() as sess:
 		ckpt = tf.train.get_checkpoint_state('./model/')
 		if ckpt and ckpt.model_checkpoint_path:
@@ -485,7 +484,10 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt)  
 	tflite_model=converter.convert()  
 	f = open("model.tflite", "wb")  
-	f.write(tflite_model)  
+	f.write(tflite_model)    
+
+	或者使用toco工具进行转换  
+	bazel run --config=opt tensorflow/contrib/lite/toco:toco -- --input_file=/tmp/output_graph.pb --input_format=TENSORFLOW_GRAPHDEF --output_file=/tmp/scene_mobilenet_v1_224.tflite --output_format=TFLITE --inference_type=FLOAT --input_arrays=input --output_arrays=final_result --input_shapes=1,224,224,3  
 
 ##### tflite测试
 	import numpy as np  
