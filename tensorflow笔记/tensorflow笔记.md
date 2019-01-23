@@ -917,10 +917,10 @@ tfrecord.py：tfrecord保存和读取文件
 variables.py：变量使用说明文件    
   
 # F&Q  
-**tf.image.convert_image_dtype**   
+**1.tf.image.convert_image_dtype**   
 图片经过tf.image.decode_jpeg解码后为[0,255]的uint8类型，如果使用image = tf.image.convert_image_dtype(image, dtype=tf.float32)转换float32类型，会被缩放到[0,1]之间，不建议使用。在tf中建议使用preprocessing对数据进行预处理    
   
-**Session、Graph、op、global_variables_initializer**  
+**2.Session、Graph、op、global_variables_initializer**  
 * graph定义了计算方式，是一些加减乘除等运算的组合，类似于一个函数。它本身不会进行任何计算，也不保存任何中间计算结果    
 * session用来运行一个graph，或者运行graph的一部分，它类似于一个执行者，给graph灌入输入数据，得到输出，并保存中间的计算结果。同时它也给graph分配计算资源（如内存、显卡等）    
 * 一个graph可以供多个session使用，而一个session不一定需要使用graph的全部，可以只使用其中的一部分    
@@ -951,8 +951,10 @@ variables.py：变量使用说明文件
 	sess.run(init)  
 	print(sess.run(z))  
   
-  
-  
+**3.tensorboard提示无法访问网站**  
+使用tensorboard --logdir . 提示TensorBoard 1.11.0 at http://DESKTOP-7AE4QOG:6006 (Press CTRL+C to quit)，但将http://DESKTOP-7AE4QOG:6006输入到谷歌浏览器提示无法访问网站  
+解决方法：使用http://localhost:6006访问即可  
+
   
   
   
