@@ -481,7 +481,7 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	filepath="model.pb"    
 	inp=["Placeholder"]    
 	opt=["MobilenetV1/logits/pool/AvgPool"]    
-	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt)    
+	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt,input_shapes=None)  #input_shapes参数，当输入存在None维度时，可以将None修改为指定数值，eg：{"foo" : [1, 16, 16, 3]}     
 	tflite_model=converter.convert()    
 	f = open("model.tflite", "wb")    
 	f.write(tflite_model)      
