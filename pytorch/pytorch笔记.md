@@ -22,6 +22,7 @@
 卷积层：nn.Conv2d  
 全连接层：nn.Linear  
 池化层：nn.MaxPool2d  
+embed层：embeds = nn.Embedding(2, 5)   
 flatten操作：x = x.view(x.size(0), -1)  
 dropout：self.fc_drop = nn.Dropout(p=0.4) 
 LSTM:nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers)  
@@ -53,6 +54,25 @@ LSTM:nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers)
 	# load the net parameters by name
 	net.load_state_dict(torch.load('saved_models/fashion_net_ex.pt'))
 	print(net)
+
+# 设备选择  
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
+	model.to(device)  
+	images = images.to(device)  
+	或者  
+	model.gpu()  
+	image.gpu()  
+	或者  
+	criterion = nn.CrossEntropyLoss().cuda() if torch.cuda.is_available() else nn.CrossEntropyLoss()
+
+# 预训练模型加载  
+	resnet = models.resnet50(pretrained=True)
+	for param in resnet.parameters():
+	param.requires_grad_(False)
+	modules = list(resnet.children())[:-1]
+	resnet = nn.Sequential(*modules)
+	embed = nn.Linear(resnet.fc.in_features, embed_size)
+
 
 
 # 可视化
