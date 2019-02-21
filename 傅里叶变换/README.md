@@ -8,7 +8,7 @@
 由此可知：  
 ![](https://latex.codecogs.com/gif.latex?e^{i\theta}=cos\theta&plus;isin\theta)  
 ![](https://latex.codecogs.com/gif.latex?e^{i\pi}&plus;1=0)  这就是著名的欧拉幅角公式,是在复平面上定义出来的  
-将单位圆等分成N个部分（以单位圆与实轴正半轴的交点一个等分点），以原点为起点，圆的这N个等分点为终点，作出N个向量，其中幅角为正且最小的向量称为N次单位向量，记为![](https://latex.codecogs.com/gif.latex?\omega_{n}^{1}),![](https://latex.codecogs.com/gif.latex?\omega_{N}^{1}=cos(-2\pi\frac{1}{N})&plus;isin(-2\pi\frac{1}{N})=e^{-i2\pi\frac{1}{N}}),  ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{k}=cos(-2\pi\frac{k}{N})&plus;isin(-2\pi\frac{k}{N})=e^{-i2\pi\frac{k}{N}})  
+将单位圆等分成N个部分（以单位圆与实轴正半轴的交点一个等分点），以原点为起点，圆的这N个等分点为终点，作出N个向量，其中幅角为正且最小的向量称为N次单位向量，记为![](https://latex.codecogs.com/gif.latex?\omega_{N}^{1}) , ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{1}=cos(-2\pi\frac{1}{N})&plus;isin(-2\pi\frac{1}{N})=e^{-i2\pi\frac{1}{N}}),  ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{k}=cos(-2\pi\frac{k}{N})&plus;isin(-2\pi\frac{k}{N})=e^{-i2\pi\frac{k}{N}})  
 > * 性质一（又称折半引理）  
 > ![](https://latex.codecogs.com/gif.latex?\omega_{2N}^{2k}=\omega_{N}^{k})  
 > ![](https://i.imgur.com/56ilhLn.png)  
@@ -28,7 +28,7 @@
 直接按这个定义求值需要 O(N^2) 次运算：Xk 共有 N 个输出，每个输出需要 N 项求和  
 xn 到 Xk 的转化就是空域到频域的转换，这个转换有助于研究信号的功率谱  
 	
-	java代码实现
+	//DFT java代码实现
 	private Complex omega(int N, int k, int n) {
 		// TODO Auto-generated method stub
 		return new Complex(Math.cos(-2*Math.PI/N*k*n),Math.sin(-2*Math.PI/N*k*n));
@@ -58,8 +58,9 @@ xn 到 Xk 的转化就是空域到频域的转换，这个转换有助于研究�
 ![](https://latex.codecogs.com/gif.latex?F_{odd}(k))和![](https://latex.codecogs.com/gif.latex?F_{even}(k))是两个分别关于序列![](https://latex.codecogs.com/gif.latex?\left\{x_{n}\right\}_{0}^{N-1})奇数号和偶数号序列N/2点变换。由此式只能计算出![](https://latex.codecogs.com/gif.latex?y_{k})的前N/2个点，对于后N/2个点，注意![](https://latex.codecogs.com/gif.latex?F_{odd}(k))和![](https://latex.codecogs.com/gif.latex?F_{even}(k))都是周期为N/2的函数，由单位根的对称性，于是有以下变换公式：  
 ![](https://i.imgur.com/Jm34Kht.png)  
 这样，一个N点变换就分解成了两个N/2点变换。照这样可继续分解下去。这就是库利-图基快速傅里叶变换算法的基本原理
-Cooley-Tukey算法实例图解  
-![](https://i.imgur.com/NnnplqI.jpg)  
+Cooley-Tukey算法实例图解:  
+![](Cooley-Tukey-1.jpg)      
+
 
 	//Cooley-Tukey递归实现  java
 	Complex omega(int N,int k) {
@@ -155,7 +156,7 @@ STFT的步骤：1. 对信号进行分帧，即使用窗函数函数来截取信�
 
 
 
-参考：
+参考：  
 [wiki:快速傅里叶变换](https://zh.wikipedia.org/wiki/%E5%BF%AB%E9%80%9F%E5%82%85%E9%87%8C%E5%8F%B6%E5%8F%98%E6%8D%A2)  
 [理解快速傅里叶变换（FFT）算法](http://blog.jobbole.com/58246/)  
 [一小时学会快速傅里叶变换（Fast Fourier Transform）](https://zhuanlan.zhihu.com/p/31584464)
