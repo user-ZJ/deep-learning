@@ -148,7 +148,17 @@ Cooley-Tukey算法实例图解:
 
 
 # 离散傅里叶反变换（Inverse Discrete Fourier Transform）
-
+令 x0, ...., xN-1 为复数，DFT的正、逆定义形式定义如下：  
+![](https://i.imgur.com/YljaEls.jpg)  
+公式形式基本相同，对fft代码做如下修改：  
+ 
+	Complex omega(int N,int k,boolean inverse) {
+		if(!inverse) {
+			return new Complex(Math.cos(-2*Math.PI/N*k),Math.sin(-2*Math.PI/N*k));
+		}
+		return new Complex(Math.cos(2*Math.PI/N*k),Math.sin(2*Math.PI/N*k)).conj();
+	}
+并将最后的值除以N即可。  
 
 # STFT
 对于一段很长的非平稳信号，可以假设其在某一段很短的时间内是平稳的，故可以对这一段很短的平稳信号做DFT变换 
@@ -159,7 +169,8 @@ STFT的步骤：1. 对信号进行分帧，即使用窗函数函数来截取信�
 参考：  
 [wiki:快速傅里叶变换](https://zh.wikipedia.org/wiki/%E5%BF%AB%E9%80%9F%E5%82%85%E9%87%8C%E5%8F%B6%E5%8F%98%E6%8D%A2)  
 [理解快速傅里叶变换（FFT）算法](http://blog.jobbole.com/58246/)  
-[一小时学会快速傅里叶变换（Fast Fourier Transform）](https://zhuanlan.zhihu.com/p/31584464)
+[一小时学会快速傅里叶变换（Fast Fourier Transform）](https://zhuanlan.zhihu.com/p/31584464)  
+[FFT 学习笔记](https://oi.men.ci/fft-notes/)  
 
 
 
