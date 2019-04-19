@@ -3,7 +3,7 @@
 
 # 复数中的单位根  
 复平面中的单位圆  
-![](https://i.imgur.com/XoLXQdk.jpg)  
+![](images/fft_1.jpg)  
 其中![](https://latex.codecogs.com/gif.latex?\vec{OA})单位根，表示为![](https://latex.codecogs.com/gif.latex?e^{i\theta}),其中i表示复数。  
 由此可知：  
 ![](https://latex.codecogs.com/gif.latex?e^{i\theta}=cos\theta&plus;isin\theta)  
@@ -11,18 +11,18 @@
 将单位圆等分成N个部分（以单位圆与实轴正半轴的交点一个等分点），以原点为起点，圆的这N个等分点为终点，作出N个向量，其中幅角为正且最小的向量称为N次单位向量，记为![](https://latex.codecogs.com/gif.latex?\omega_{N}^{1}) , ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{1}=cos(-2\pi\frac{1}{N})&plus;isin(-2\pi\frac{1}{N})=e^{-i2\pi\frac{1}{N}}),  ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{k}=cos(-2\pi\frac{k}{N})&plus;isin(-2\pi\frac{k}{N})=e^{-i2\pi\frac{k}{N}})  
 > * 性质一（又称折半引理）  
 > ![](https://latex.codecogs.com/gif.latex?\omega_{2N}^{2k}=\omega_{N}^{k})  
-> ![](https://i.imgur.com/56ilhLn.png)  
+> ![](images/fft_2.png)  
 > 其实由此我们可以引申出:![](https://latex.codecogs.com/gif.latex?\omega_{mN}^{mk}=\omega_{N}^{k})   
 > * 性质二:对称性（又称消去引理）  
 > ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{k&plus;\frac{N}{2}}=-\omega_{N}^{k})  
-> ![](https://i.imgur.com/R2wVaIC.png)  
+> ![](images/fft_3.png)  
 > * 性质三：周期性  
 > ![](https://latex.codecogs.com/gif.latex?\omega_{N}^{k&plus;N}=\omega_{N}^{k})  
 复平面表示法先介绍到这里，后续会用到以上表示方法和性质。
 
 # 离散傅里叶变换（Discrete Fourier Transform DFT)
 令 x0, ...., xN-1 为复数，DFT的正、逆定义形式定义如下：  
-![](https://i.imgur.com/YljaEls.jpg)  
+![](images/fft_4.jpg)  
 上图公式中，n:[0,1,2,...,N-1], k:[0,1,2,...,N-1], xn为输入的复数，i表示虚数，N为输入数据长度  
 ![](https://latex.codecogs.com/gif.latex?e^{-i2\pi&space;nk/N}=cos(-i2\pi&space;nk/N)&plus;i*sin(-i2\pi&space;nk/N))    
 直接按这个定义求值需要 O(N^2) 次运算：Xk 共有 N 个输出，每个输出需要 N 项求和  
@@ -54,12 +54,12 @@ xn 到 Xk 的转化就是空域到频域的转换，这个转换有助于研究�
 库利-图基算法最有名的应用，是将序列长为N 的DFT分割为两个长为N/2 的子序列的DFT，因此这一应用只适用于序列长度为2的幂的DFT计算，即基2-FFT。实际上，如同高斯和Cooley与Tukey都指出的那样，Cooley-Tukey算法也可以用于序列长度N 为任意因数分解形式的DFT，即混合基FFT，而且还可以应用于其他诸如分裂基FFT等变种。尽管Cooley-Tukey算法的基本思路是采用递归的方法进行计算，大多数传统的算法实现都将显式的递归算法改写为非递归的形式。另外，因为Cooley-Tukey算法是将DFT分解为较小长度的多个DFT，因此它可以同任一种其他的DFT算法联合使用。  
 下面，我们用N次单位根![](https://latex.codecogs.com/gif.latex?W_{N})来表示![](https://latex.codecogs.com/gif.latex?e^{-i{\frac&space;{2\pi&space;}{N}}})。![](https://latex.codecogs.com/gif.latex?W_{N})满足上面介绍的复数单位根的三条性质。    
 为了简单起见，我们下面设待变换序列长度![](https://latex.codecogs.com/gif.latex?n=2^{r})。根据上面单位根的对称性，求级数![](https://latex.codecogs.com/gif.latex?y_{k}=\sum&space;_{n=0}^{N-1}W_{N}^{kn}x_{n})时，可以将求和区间分为两部分：  
-![](https://i.imgur.com/5N6OOjK.png)  
+![](images/fft_5.png)  
 ![](https://latex.codecogs.com/gif.latex?F_{odd}(k))和![](https://latex.codecogs.com/gif.latex?F_{even}(k))是两个分别关于序列![](https://latex.codecogs.com/gif.latex?\left\{x_{n}\right\}_{0}^{N-1})奇数号和偶数号序列N/2点变换。由此式只能计算出![](https://latex.codecogs.com/gif.latex?y_{k})的前N/2个点，对于后N/2个点，注意![](https://latex.codecogs.com/gif.latex?F_{odd}(k))和![](https://latex.codecogs.com/gif.latex?F_{even}(k))都是周期为N/2的函数，由单位根的对称性，于是有以下变换公式：  
-![](https://i.imgur.com/Jm34Kht.png)  
+![](images/fft_6.png)  
 这样，一个N点变换就分解成了两个N/2点变换。照这样可继续分解下去。这就是库利-图基快速傅里叶变换算法的基本原理
 Cooley-Tukey算法实例图解:  
-![](Cooley-Tukey-1.jpg)      
+![](images/Cooley-Tukey-1.jpg)      
 
 
 	//Cooley-Tukey递归实现  java
@@ -149,7 +149,7 @@ Cooley-Tukey算法实例图解:
 
 # 离散傅里叶反变换（Inverse Discrete Fourier Transform）
 令 x0, ...., xN-1 为复数，DFT的正、逆定义形式定义如下：  
-![](https://i.imgur.com/YljaEls.jpg)  
+![](images/fft_7.jpg)  
 公式形式基本相同，对fft代码做如下修改：  
  
 	Complex omega(int N,int k,boolean inverse) {

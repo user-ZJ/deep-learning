@@ -12,7 +12,7 @@ public class FFT {
 		}
 		return new Complex(Math.cos(-2*Math.PI/N*k),Math.sin(-2*Math.PI/N*k)).conj();
 	}
-	
+	//∏µ¿Ô“∂±‰ªª
 	public Complex [] DFT_slow(Complex [] x) {
 		//System.out.println("DFT_slow");
 		int N = x.length;
