@@ -84,6 +84,18 @@ WAV文件是由若干个Chunk组成的。按照在文件中的出现位置包括
 	    }
 	}
 
+
+## pyton操作wav的库
+- PySoundFile
+- scipy.io.wavfile (from scipy)
+- wave (to read streams. Included in python 2 and 3)
+- scikits.audiolab (that seems unmaintained)
+- sounddevice (play and record sounds, good for streams and real-time)
+- pyglet
+
+https://stackoverflow.com/questions/2060628/reading-wav-files-in-python
+
+
 参考：
 https://www.cnblogs.com/lidabo/p/3729615.html
 https://www.cnblogs.com/ricks/p/9522243.html
