@@ -26,10 +26,16 @@ VAD的主要困难表现为现实情况下语音信号信噪比较低，不能�
 5. 应用长度为0.5s的中值滤波器来平滑检测到的语音区域
 6. 将语音区域表示为时间间隔
 
-代码实现：VAD-python-energy
+代码实现：VAD-python-energy  
+https://github.com/marsbroshok/VAD-python  
 
 ## 基于DNN的vad
-https://zhuanlan.zhihu.com/p/24432663
+https://zhuanlan.zhihu.com/p/24432663  
+http://jst.tsinghuajournals.com/CN/rhhtml/20180511.htm#outline_anchor_7  
+https://github.com/jtkim-kaist/VAD  
+https://github.com/mounalab/LSTM-RNN-VAD  
+https://github.com/Cocoxili/VAD
+
 
 ## webrtc_vad
 webrtc的vad检测原理是根据人声的频谱范围，把输入的频谱分成六个子带（80Hz~250Hz，250Hz~500Hz,500Hz~1K,1K~2K,2K~3K,3K~4K。） 分别计算这六个子带的能量。然后使用高斯模型（GMM）的概率密度函数做运算，得出一个对数似然比函数。对数似然比分为全局和局部，全局是六个子带之加权之和，而局部是指每一个子带则是局部，所以语音判决会先判断子带，子带判断没有时会判断全局，只要有一方过了，就算有语音。  
@@ -48,6 +54,20 @@ webrtc的vad检测代码比较简洁，核心代码只在三个文件中：
 　　vad检测共四种模式，用数字0~3来区分，激进程度与数值大小正相关。
 0: Normal，1：low Bitrate， 2：Aggressive；3：Very Aggressive 可以根据实际的使用，数值越大，判断越粗略，连着的静音或者响声增多
 
+### python-webrtcvad
+参考：https://github.com/wiseman/py-webrtcvad  
+
+	!pip install webrtcvad
+	import webrtcvad
+	sample_rate = 8000 
+	frame_duration_ms = 0.02 #20ms
+	vad = webrtcvad.Vad()
+	vad.set_mode(1)
+	data = [random.randint(0,255) for i in range(sample_rate*frame_duration_ms)]
+	frame = np.int16(data).tobytes()  # vad输入为int16转换后的bytes数据
+	vad.is_speech(frame, sample_rate)  
+
+	代码实现：py-webrtc-vad.py
   
 
 
