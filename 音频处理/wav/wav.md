@@ -86,7 +86,7 @@ WAV文件是由若干个Chunk组成的。按照在文件中的出现位置包括
 
 
 ## pyton操作wav的库
-- PySoundFile
+- PySoundFile [文档](https://pysoundfile.readthedocs.io/en/0.9.0/)   
 - scipy.io.wavfile (from scipy)
 - wave (to read streams. Included in python 2 and 3)
 - scikits.audiolab (that seems unmaintained)
