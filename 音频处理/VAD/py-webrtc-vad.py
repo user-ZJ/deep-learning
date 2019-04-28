@@ -5,6 +5,7 @@ import sys
 import webrtcvad
 from deepspeaker_pa.utils import audio_utils
 import numpy as np
+import soundfile as sf
 
 
 class Frame(object):
@@ -89,7 +90,7 @@ def vad_collector(sample_rate, frame_duration_ms,
 
 
 def main(args):
-    data, sample_rate, channels = audio_utils.read_wav("voice.wav")
+    data, sample_rate, channels = sf.read("voice.wav",dtype='int16')
     vad = webrtcvad.Vad()
     vad.set_mode(1)
     frame_duration_ms = 20  # ms 帧长为20ms
@@ -99,7 +100,7 @@ def main(args):
     # print('Contains speech: %s' % (vad.is_speech(frame, rate)))
     frames = frame_generator(frame_duration_ms, data, sample_rate)
     voiced_data = vad_collector(sample_rate, frame_duration_ms, padding_duration_ms, vad, frames)
-    audio_utils.write_wav("audio_cut.wav", voiced_data, sample_rate)
+    sf.write("audio_cut.wav", voiced_data, sample_rate)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
