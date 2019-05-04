@@ -176,7 +176,7 @@ variable_scope 变量作用域机制在 TensorFlow 中主要由两部分组成�
 v = tf.get_variable(name, shape, dtype, initializer) # 通过所给的名字创建或是返回一个变量      
 tf.variable_scope(<scope_name>) # 为变量指定命名空间      
     
-1. 获取变量作用域      
+1.获取变量作用域
 
 
 	可以直接通过 tf.variable_scope()来获取变量作用域：
