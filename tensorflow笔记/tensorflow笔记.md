@@ -180,18 +180,18 @@ tf.variable_scope(<scope_name>) # 为变量指定命名空间
 
 
 	可以直接通过 tf.variable_scope()来获取变量作用域：        
-	    with tf.variable_scope("foo") as foo_scope:    
-    	v = tf.get_variable("v", [1])    
-    	with tf.variable_scope(foo_scope)    
-    	w = tf.get_variable("w", [1])    
+	with tf.variable_scope("foo") as foo_scope:    
+		v = tf.get_variable("v", [1])    
+		with tf.variable_scope(foo_scope)    
+			w = tf.get_variable("w", [1])    
 	如果在开启的一个变量作用域里使用之前预先定义的一个作用域，则会跳过当前变量的作用域，保持预先存在的作用域不变。      
-	    with tf.variable_scope("foo") as foo_scope:    
-    	    assert foo_scope.name == "foo"    
-    	with tf.variable_scope("bar")    
-    	    with tf.variable_scope("baz") as other_scope:    
-    	       assert other_scope.name == "bar/baz"    
-    	       with tf.variable_scope(foo_scope) as foo_scope2:    
-    	           assert foo_scope2.name == "foo"  # 保持不变    
+	with tf.variable_scope("foo") as foo_scope:    
+		assert foo_scope.name == "foo"    
+	with tf.variable_scope("bar")    
+		with tf.variable_scope("baz") as other_scope:    
+			assert other_scope.name == "bar/baz"    
+			with tf.variable_scope(foo_scope) as foo_scope2:    
+				assert foo_scope2.name == "foo"  # 保持不变    
     
 2．变量作用域的初始化    
 变量作用域可以默认携带一个初始化器，在这个作用域中的子作用域或变量都可以继承或者重写父作用域初始化器中的值。      
