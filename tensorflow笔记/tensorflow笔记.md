@@ -694,6 +694,7 @@ TensorFlow 官方网站给出了以下读取数据3种方法：
 将图片写入tfrecord文件要以int的数值写入，float32可能会导致精度丢失    
     
 实例代码：code/tfrecord.py    
+写入tfrecord pipeline:tfrecord.md    
     
 1. 把样本数据写入 TFRecords 二进制文件；      
 * numpy数据通过toString转换为二进制，再通过_bytes_feature写入tfrecord      
