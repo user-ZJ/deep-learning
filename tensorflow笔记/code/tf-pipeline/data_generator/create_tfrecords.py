@@ -103,33 +103,49 @@ class SampleTFRecordCreator(object):
         """
         tfrecords_list = []
         count = 0 #统计处理文件的数量
-        pbar = tqdm(total=len(files), desc="Creating: { } tfrecord".format(flag))
-        for i in files:
-            pbar.update()
-            self.get_examples(i)
-        # executor = ThreadPoolExecutor(max_workers=self.processes)
-        # examples_feature = {executor.submit(self.get_examples, i): i for i in files}
-        # for feature in as_completed(examples_feature):
+        pbar = tqdm(total=len(files), desc="Creating: {} tfrecord".format(flag))
+        # 单线程
+        # for i in files:
         #     if count % 1000 == 0:
-        #         filename = os.path.join(self.tfrecords_dir,flag+"_"+str(count)+".tfrecord")
+        #         filename = os.path.join(self.tfrecords_dir, flag + "_" + str(count) + ".tfrecord")
         #         tfrecords_list.append(filename)
         #         writer = tf.python_io.TFRecordWriter(filename)
-        #     i = examples_feature[feature]
-        #     try:
-        #         examples = feature.result()
-        #     except Exception as exc:
-        #         print('%r generated an exception: %s' % (self.id_filename_dict[i], exc))
-        #     else:
-        #         for example in examples:
-        #             writer.write(example)
-        #         count += 1
-        #         if count % 1000 ==0:
-        #             writer.close()
+        #     examples = self.get_examples(i)
+        #     for example in examples:
+        #         writer.write(example)
+        #     count += 1
+        #     if count % 1000 == 0:
+        #         writer.close()
         #     pbar.update()
         # writer.close()
-        # executor.shutdown()
         # pbar.close()
         # return tfrecords_list,count
+        #多线程
+        executor = ThreadPoolExecutor(max_workers=self.processes)
+        examples_feature = {executor.submit(self.get_examples, i): i for i in files}
+        for feature in as_completed(examples_feature):
+            if count % 1000 == 0:
+                filename = os.path.join(self.tfrecords_dir,flag+"_"+str(count)+".tfrecord")
+                tfrecords_list.append(filename)
+                writer = tf.python_io.TFRecordWriter(filename)
+            i = examples_feature[feature]
+            try:
+                examples = feature.result()
+            except Exception as exc:
+                del examples_feature[feature]
+                print('%r generated an exception: %s' % (self.id_filename_dict[i], exc))
+            else:
+                del examples_feature[feature]
+                for example in examples:
+                    writer.write(example)
+                count += 1
+                if count % 1000 ==0:
+                    writer.close()
+            pbar.update()
+        writer.close()
+        executor.shutdown()
+        pbar.close()
+        return tfrecords_list,count
 
     def get_examples(self, i):
         """
