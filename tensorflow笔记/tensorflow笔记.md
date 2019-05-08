@@ -933,6 +933,8 @@ variables.py：变量使用说明文件
 * global_variables_initializer用来初始化计算图中所有global variable的op    
 * global_variables_initializer本身就是一个op，不要加入到graph中才能使用session运行    
 如下实例：    
+
+ 
 	#运行报错    
 	g1 = tf.Graph()    
 	with g1.as_default():    
@@ -957,6 +959,15 @@ variables.py：变量使用说明文件
 **3.tensorboard提示无法访问网站**    
 使用tensorboard --logdir . 提示TensorBoard 1.11.0 at http://DESKTOP-7AE4QOG:6006 (Press CTRL+C to quit)，但将http://DESKTOP-7AE4QOG:6006输入到谷歌浏览器提示无法访问网站    
 解决方法：使用http://localhost:6006访问即可    
+
+**4.sess.run(summary_op)报错**  
+> error：You must feed a value for placeholder tensor 'labels' with dtype float and shape  
+
+因为模型的输入为tf.placeholder,sess.run(summary_op)功能是运行所有的summary节点，summary节点中的数据为模型运行过程中的数据，所以会依赖模型的输入数据，而输入数据是placeholder，需要使用feed_dict提供数据。  
+
+解决方法：不建议单独运行sess.run(summary_op)，建议在训练或评估的同时运行sess.run(summary_op)；如：  
+train_summary_str,_, train_loss = sess.run([summary_op,train_opt, loss],feed_dict={inputs:train_data,labels:train_labels})
+
   
     
     
