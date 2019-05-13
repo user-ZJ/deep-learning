@@ -378,12 +378,20 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 		ckpt = tf.train.get_checkpoint_state('./model/')    
 		if ckpt and ckpt.model_checkpoint_path:    
 			print(ckpt.model_checkpoint_path)    
+			#加载指定模型
 			saver = tf.train.import_meta_graph('model/model.ckpt-10.meta')		    
 			saver.restore(sess, 'model/model.ckpt-10') #加载指定模型    
 			#从checkpoint文件中加载指定的模型    
-			saver = tf.train.import_meta_graph(input_checkpoint + '.meta',    
+			saver = tf.train.import_meta_graph(ckpt.model_checkpoint_path + '.meta',    
                                        clear_devices=True)    
 			saver.restore(sess, ckpt.model_checkpoint_path) #加载checkpoint中记录的模型    
+			#使用graph.get_tensor_by_name()方法来操纵这个保存的模型
+			graph = tf.get_default_graph()
+            inputs = graph.get_tensor_by_name('inputs:0')
+            labels = graph.get_tensor_by_name('labels:0')
+			outputs = graph.get_tensor_by_name('xxx/outputs:0')
+			outputs = sess.run(outputs,feed_dict={inputs:test_data,labels:test_labels})
+			print(outputs)
     
 #### 使用pbtxt或pb文件    
     
@@ -905,6 +913,7 @@ https://blog.csdn.net/dcrmg/article/details/79780331
 6. 创建训练器    
 slim.learning.create_train_op：a.计算loss，b.根据梯度更新权重，c.返回loss的值；和slim.learning.train配合使用       
 tf.contrib.layers.optimize_loss：Given loss and parameters for optimizer, returns a training op；    
+tf.train.GradientDescentOptimizer(learning_rate).minimize(loss,global_step=global_step)   
 7. 训练模型     
 slim.learning.train():运行slim.learning.create_train_op创建的对象      
 _, loss_value = sess.run([train_op, total_loss]) :运行tf.contrib.layers.optimize_loss创建的对象      
