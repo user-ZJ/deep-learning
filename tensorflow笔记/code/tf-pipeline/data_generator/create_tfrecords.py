@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import random
@@ -102,7 +103,8 @@ class SampleTFRecordCreator(object):
         :return:
         """
         tfrecords_list = []
-        count = 0 #统计处理文件的数量
+        count_file = 0 #统计处理文件的数量
+        count_sample = 0
         pbar = tqdm(total=len(files), desc="Creating: {} tfrecord".format(flag))
         # 单线程
         # for i in files:
@@ -124,8 +126,8 @@ class SampleTFRecordCreator(object):
         executor = ThreadPoolExecutor(max_workers=self.processes)
         examples_feature = {executor.submit(self.get_examples, i): i for i in files}
         for feature in as_completed(examples_feature):
-            if count % 1000 == 0:
-                filename = os.path.join(self.tfrecords_dir,flag+"_"+str(count)+".tfrecord")
+            if count_file % 1000 == 0: #每1000个文件写入一个tfrecord
+                filename = os.path.join(self.tfrecords_dir,flag+"_"+str(count_file)+".tfrecord")
                 tfrecords_list.append(filename)
                 writer = tf.python_io.TFRecordWriter(filename)
             i = examples_feature[feature]
@@ -138,14 +140,15 @@ class SampleTFRecordCreator(object):
                 del examples_feature[feature]
                 for example in examples:
                     writer.write(example)
-                count += 1
-                if count % 1000 ==0:
+                    count_sample += 1
+                count_file +=1
+                if count_file % 1000 ==0:
                     writer.close()
             pbar.update()
         writer.close()
         executor.shutdown()
         pbar.close()
-        return tfrecords_list,count
+        return tfrecords_list,count_sample
 
     def get_examples(self, i):
         """
@@ -249,6 +252,26 @@ class SampleTFRecordCreator(object):
         if feature is not None:
             return feature,self.label_dict[label]
 
+    def create_datainfo(self):
+        datainfo = {}
+        feature,_ = self.featurize(0)
+        datainfo['tfrecords_dir'] = self.tfrecords_dir
+        datainfo['context'] = self.context
+        datainfo['data_shape'] = feature[0].shape
+        datainfo['num_labels'] = self.num_labels
+        datainfo['label_dict'] = self.label_dict
+        datainfo['train_files'] = len(self.train_files)
+        datainfo['validation_files'] = len(self.validation_files)
+        datainfo['test_files'] = len(self.test_files)
+        datainfo['train_samples'] = self.train_samples
+        datainfo['validation_samples'] = self.validation_samples
+        datainfo['test_samples'] = self.test_samples
+        datainfo['train_tfrecord_list'] = self.train_tfrecord_list
+        datainfo['validation_tfrecord_list'] = self.validation_tfrecord_list
+        datainfo['test_tfrecord_list'] = self.test_tfrecord_list
+        with open(self.tfrecords_dir+"/datainfo.json", "w", encoding='UTF-8') as f:
+            json.dump(datainfo, f, ensure_ascii=False, indent=4)
+
 
 
 if __name__ == '__main__':
@@ -290,3 +313,4 @@ if __name__ == '__main__':
                                     target_sr=16000,samples_per_speaker=args.samples_per_speaker)
 
     creator.create_tfrecords()
+    creator.create_datainfo()
