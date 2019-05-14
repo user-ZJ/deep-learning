@@ -40,12 +40,10 @@ if __name__ == '__main__':
         num_threads=args.num_threads
     )
     #shape, num_labels, train_spe, validation_spe, test_spe = data_generator.get_data_info()
-    # 生成batch_size数据
-    train_data, train_labels = data_generator.generator('train').__next__()
-    validation_data, validation_labels = data_generator.generator('validation').__next__()
+
     if args.model_type == 'rescnn':
-        inputs = tf.placeholder(dtype=tf.float32,shape=train_data.shape,name="inputs")
-        labels = tf.placeholder(dtype=tf.float32, shape=train_labels.shape, name="labels")
+        inputs = tf.placeholder(dtype=tf.float32,shape=[None,64,64,1],name="inputs")
+        labels = tf.placeholder(dtype=tf.float32, shape=[None,109], name="labels")
         logits = rescnn.rescnn(inputs)
 
     # 定义损失函数
@@ -64,9 +62,9 @@ if __name__ == '__main__':
     #定义global_step计算训练步数
     global_step = tf.train.get_or_create_global_step()
     # 定义优化器
-    optz = lambda learning_rate: tf.train.GradientDescentOptimizer(learning_rate)
+    #optz = lambda learning_rate: tf.train.GradientDescentOptimizer(learning_rate)
     #train_opt = tf.contrib.layers.optimize_loss(loss, global_step, learning_rate, optz, clip_gradients=4.)
-    train_opt = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss,global_step=global_step)
+    train_opt = tf.train.AdamOptimizer(learning_rate).minimize(loss,global_step=global_step)
 
     # 创建tensorboard日志
     saver = tf.train.Saver(tf.global_variables())
@@ -83,6 +81,9 @@ if __name__ == '__main__':
 
     total_step = args.epochs*data_generator.train_spe
     for step in range(total_step):
+        # 生成batch_size数据
+        train_data, train_labels = data_generator.generator('train').__next__()
+        validation_data, validation_labels = data_generator.generator('validation').__next__()
         start_time = time.time()
         train_summary_str,_, train_loss = sess.run([summary_op,train_opt, loss],feed_dict={inputs:train_data,labels:train_labels})
         duration = time.time() - start_time
