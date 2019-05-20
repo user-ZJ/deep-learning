@@ -16,30 +16,6 @@ def audio_predicate(fname):
     return fname.lower().endswith(".wav") or fname.lower().endswith(".mp3") or fname.lower().endswith(".aac")
 
 
-# def remove_silence(sound, silence_threshold=-50.0, chunk_size=10):
-#     """
-#     Remove silence from audio clips
-#     :param sound: Audio signal
-#     :param silence_threshold: Threshold below which segment considered silent
-#     :param chunk_size: audio segment in milli seconds to test for silence
-#     :return: Audio without silent zones
-#     """
-#     clip = AudioSegment.empty()
-#     cur_start = 0
-#     trim_ms = 0
-#     while trim_ms + chunk_size < len(sound):
-#         if sound[trim_ms:trim_ms + chunk_size].dBFS < silence_threshold:
-#             cur_end = trim_ms
-#             if cur_end != cur_start:
-#                 clip += sound[cur_start:cur_end]
-#             trim_ms += chunk_size
-#             cur_start = trim_ms
-#         else:
-#             trim_ms += chunk_size
-#     if sound[cur_start:].dBFS > silence_threshold:
-#         clip += sound[cur_start:]
-#     return clip
-
 def resample(y, sr, target_sr):
     """
     Resample audio signal
@@ -69,6 +45,20 @@ def read_wav(path,dtype='int16'):
 
 def write_wav(path, data, samplerate):
     sf.write(path, data, samplerate)
+
+def get_audio_info(path):
+    """
+    获取音频信息的结构体，包含如下信息
+    samplerate(Hz):采样率
+    channels：通道数
+    duration:时长,float类型，单位为s
+    format:格式，如WAV
+    subtype:数据格式，如PCM_16
+    :param path:
+    :return:
+    """
+    audioinfo = sf.info(path)
+    return audioinfo
 
 
 class Frame(object):
@@ -165,7 +155,7 @@ def vad_collector(samplerate, frame_duration, padding_duration, vad, frames):
     return np.array(voiced_data).astype(np.int16).flatten()
 
 
-def remove_silence(audiodata,samplerate,num_padding=10):
+def remove_silence_data(audiodata,samplerate,num_padding=10):
     """
     去除音频数据中静音部分
     :param audiodata:int16类型的音频数据
@@ -180,4 +170,25 @@ def remove_silence(audiodata,samplerate,num_padding=10):
     frames = frame_generator(frame_duration, audiodata, samplerate)
     voiced_data = vad_collector(samplerate, frame_duration, padding_duration, vad, frames)
     return voiced_data
+
+def remove_silence_file(inputfile,outputfile,num_padding=10):
+    """
+    去除音频中静音部分
+    :param inputfile:原始音频
+    :param outputfile:去静音后音频
+    :param num_padding:平滑输出音频数据使用，
+    连续chunk_size帧数据为静音则认为静音，连续chunk_size帧数据有音频则认为有音频
+    :return:
+    """
+    data, sample_rate = sf.read(inputfile, dtype='int16')
+    audioinfo = sf.info(inputfile)
+    if audioinfo.channels > 1:
+        data = data[:,0]
+    vad = webrtcvad.Vad()
+    vad.set_mode(1)
+    frame_duration = 0.02  # 帧长 20ms
+    padding_duration = frame_duration * num_padding  # 平滑窗口大小
+    frames = frame_generator(frame_duration, data, sample_rate)
+    voiced_data = vad_collector(sample_rate, frame_duration, padding_duration, vad, frames)
+    sf.write(outputfile, voiced_data, sample_rate)
 

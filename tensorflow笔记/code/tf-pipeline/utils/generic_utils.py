@@ -4,6 +4,8 @@ import logging
 import os
 import threading
 
+import numpy as np
+
 
 def initialize_logger(output_dir):
     """
@@ -57,6 +59,30 @@ def list_files(base_path, filter_func):
                 yield (os.path.join(folder, filename))
 
 
+def cosine_similarity(x,y,norm=True):
+    """
+    计算向量x和y的余弦相似度
+    :param norm:是否做归一化
+    :return:
+    """
+    cos = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    if norm:
+        return 0.5+0.5*cos
+    else:
+        return cos
+
+def cosine_distances(x,y,norm=False):
+    """
+    计算向量x和y的余弦距离，余弦距离= 1 - 余弦相似度
+    :param norm:是否做归一化
+    :return:
+    """
+    cos = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    if norm:
+        return 1-(0.5+0.5*cos)
+    else:
+        return 1-cos
+
 
 def run_once(f):
     """
@@ -101,3 +127,16 @@ def threadsafe_generator(f):
     def g(*a, **kw):
         return ThreadSafeIter(f(*a, **kw))
     return g
+
+def get_available_gpus():
+    """
+        返回可用GPU列表
+    """
+    from tensorflow.python.client import device_lib
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+
+
+
+if __name__ == '__main__':
+    print(cosine_similarity([1, 2, 2, 1, 1, 1, 0], [1, 2, 2, 1, 1, 2, 1]))

@@ -194,12 +194,6 @@ class SampleDataGenerator(object):
                 break
         return np.array(xs), np.array(ys)
 
-    def get_data_iterator(self, filename):
-        dataset = tf.data.TFRecordDataset(filename)
-        dataset = dataset.map(self.parser)
-        dataset = dataset.shuffle(buffer_size=1024, seed=42)
-        iterator = dataset.make_one_shot_iterator()
-        return iterator
 
 
 if __name__ == '__main__':

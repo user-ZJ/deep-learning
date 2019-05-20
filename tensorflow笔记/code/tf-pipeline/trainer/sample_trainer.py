@@ -1,4 +1,5 @@
 import argparse
+import logging
 import random
 from datetime import datetime
 
@@ -55,7 +56,7 @@ if __name__ == '__main__':
     learning_rate = tf.train.exponential_decay(
         1e-4,  # 初始学习率
         tf.train.get_or_create_global_step(),  # 训练step
-        1000,#300000//args.batch_size,  # 衰减速度，每decay_steps轮，学习率乘以_LEARNING_RATE_DECAY_FACTOR
+        data_generator.train_samples//args.batch_size,#300000//args.batch_size,  # 衰减速度，每decay_steps轮，学习率乘以_LEARNING_RATE_DECAY_FACTOR
         0.94,  # 衰减系数
         staircase=True)
     tf.summary.scalar('learning_rate',learning_rate)
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     # 定义优化器
     #optz = lambda learning_rate: tf.train.GradientDescentOptimizer(learning_rate)
     #train_opt = tf.contrib.layers.optimize_loss(loss, global_step, learning_rate, optz, clip_gradients=4.)
-    train_opt = tf.train.AdamOptimizer(learning_rate).minimize(loss,global_step=global_step)
+    train_opt = tf.train.AdamOptimizer(1e-4).minimize(loss,global_step=global_step)
 
     # 创建tensorboard日志
     saver = tf.train.Saver(tf.global_variables())
@@ -92,15 +93,20 @@ if __name__ == '__main__':
             num_examples_per_step = data_generator.batch_size
             examples_per_sec = num_examples_per_step / (duration + 1e-4)
             sec_per_batch = float(duration)
-            format_str = ('%s: epoch:%d %d/%d, train/valid loss = %.4f/%.4f (%.1f examples/sec; %.3f ' 'sec/batch)')
-            print(format_str % (datetime.now(), step/data_generator.train_spe+1,step%data_generator.train_spe,data_generator.train_spe,
-                                train_loss, valid_loss,examples_per_sec, sec_per_batch))
+            # format_str = ('%s: epoch:%d %d/%d, train/valid loss = %.4f/%.4f (%.1f examples/sec; %.3f ' 'sec/batch)')
+            # print(format_str % (datetime.now(), step/data_generator.train_spe+1,step%data_generator.train_spe,data_generator.train_spe,
+            #                     train_loss, valid_loss,examples_per_sec, sec_per_batch))
+            logging.info('{}: epoch:{:d} {:d}/{:d}, train/valid loss = {:4f}/{:4f} ({:1f} examples/sec; {:3f} ' 'sec/batch)'.format(
+                datetime.now(), int(step / data_generator.train_spe + 1), int(step % data_generator.train_spe),
+                int(data_generator.train_spe,train_loss), valid_loss,examples_per_sec, sec_per_batch))
             train_writer.add_summary(train_summary_str, step)
             valid_writer.add_summary(valid_summary_str, step)
         if step % 1000 == 0 or (step + 1) == total_step:
-            print("save model at %d step" % step)
+            # print("save model at %d step" % step)
+            logging.info("save model at {} step".format(step))
             saver.save(sess, os.path.join(runs_dir,"checkpoints") + '/model.ckpt', global_step=step)
 
+    data_generator.clean_up()
     coord.request_stop()
     coord.join(threads)
 
