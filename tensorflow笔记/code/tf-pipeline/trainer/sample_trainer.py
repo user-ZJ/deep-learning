@@ -65,10 +65,18 @@ if __name__ == '__main__':
     # 定义优化器
     #optz = lambda learning_rate: tf.train.GradientDescentOptimizer(learning_rate)
     #train_opt = tf.contrib.layers.optimize_loss(loss, global_step, learning_rate, optz, clip_gradients=4.)
-    train_opt = tf.train.AdamOptimizer(1e-4).minimize(loss,global_step=global_step)
+    apply_gradient_op = tf.train.AdamOptimizer(1e-4).minimize(loss,global_step=global_step)
 
-    # 创建tensorboard日志
+    # Track the moving averages of all trainable variables.
+    variable_averages = tf.train.ExponentialMovingAverage(
+        0.9999, global_step)
+    variables_averages_op = variable_averages.apply(tf.trainable_variables())
+
+    # Group all updates to into a single train op.
+    train_opt = tf.group(apply_gradient_op, variables_averages_op)
+
     saver = tf.train.Saver(tf.global_variables())
+    # 创建tensorboard日志
     summary_op = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter(os.path.join(runs_dir,'log/train'), sess.graph)
     valid_writer = tf.summary.FileWriter(os.path.join(runs_dir,'log/valid'))
@@ -98,7 +106,7 @@ if __name__ == '__main__':
             #                     train_loss, valid_loss,examples_per_sec, sec_per_batch))
             logging.info('{}: epoch:{:d} {:d}/{:d}, train/valid loss = {:4f}/{:4f} ({:1f} examples/sec; {:3f} ' 'sec/batch)'.format(
                 datetime.now(), int(step / data_generator.train_spe + 1), int(step % data_generator.train_spe),
-                int(data_generator.train_spe,train_loss), valid_loss,examples_per_sec, sec_per_batch))
+                int(data_generator.train_spe),train_loss, valid_loss,examples_per_sec, sec_per_batch))
             train_writer.add_summary(train_summary_str, step)
             valid_writer.add_summary(valid_summary_str, step)
         if step % 1000 == 0 or (step + 1) == total_step:
