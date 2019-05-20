@@ -138,6 +138,15 @@ log_device_placement和allow_soft_placement参数：
 
 tensorflow多GPU训练参考代码：https://github.com/tensorflow/models/blob/master/tutorials/image/cifar10/cifar10_multi_gpu_train.py
 
+## 多GPU使用feed_dict
+https://stackoverflow.com/questions/43241829/multi-gpu-training-in-tensorflow-data-parallelism-when-using-feed-dict?rq=1
+
+https://github.com/golbin/TensorFlow-Multi-GPUs/blob/master/many-GPUs-MNIST.py
+
+https://blog.csdn.net/minstyrain/article/details/80986397
+
+代码：https://github.com/user-ZJ/deep-learning/tree/master/tensorflow%E7%AC%94%E8%AE%B0/code/tf-pipeline/trainer
+
 	
 
 # 参考
