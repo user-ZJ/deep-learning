@@ -1,3 +1,4 @@
+#coding=utf-8
 import argparse
 import logging
 import random
@@ -43,7 +44,7 @@ if __name__ == '__main__':
     #shape, num_labels, train_spe, validation_spe, test_spe = data_generator.get_data_info()
 
     if args.model_type == 'rescnn':
-        inputs = tf.placeholder(dtype=tf.float32,shape=[None,64,64,1],name="inputs")
+        inputs = tf.placeholder(dtype=tf.float32,shape=[None,None,None,1],name="inputs")
         labels = tf.placeholder(dtype=tf.float32, shape=[None,109], name="labels")
         logits = rescnn.rescnn(inputs)
 
@@ -85,8 +86,6 @@ if __name__ == '__main__':
     sess.run(tf.global_variables_initializer())
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess,coord=coord)
-
-
 
     total_step = args.epochs*data_generator.train_spe
     for step in range(total_step):

@@ -135,10 +135,10 @@ if __name__ == '__main__':
         for step in range(total_step):
             start_time = time.time()
             train_data,train_label=data_generator.generator('train').__next__()
+            validation_data, validation_labels = data_generator.generator('validation').__next__()
             train_summary_str,_, train_loss = sess.run([summary_op,train_op, loss],feed_dict={inputs:train_data,labels:train_label})
             duration = time.time() - start_time
             if step % 100 == 0:
-                validation_data, validation_labels = data_generator.generator('validation').__next__()
                 valid_summary_str,valid_loss = sess.run([summary_op,loss], feed_dict={inputs: train_data, labels: train_label})
                 num_examples_per_step = data_generator.batch_size
                 examples_per_sec = num_examples_per_step / (duration + 1e-4)

@@ -1,3 +1,4 @@
+#coding=utf-8
 import argparse
 import json
 import logging
@@ -9,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import tensorflow as tf
 import time
-from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.python.keras.utils import to_categorical
 from tqdm import tqdm
 
@@ -108,20 +108,21 @@ class SampleTFRecordCreator(object):
         pbar = tqdm(total=len(files), desc="Creating: {} tfrecord".format(flag))
         # 单线程
         # for i in files:
-        #     if count % 1000 == 0:
-        #         filename = os.path.join(self.tfrecords_dir, flag + "_" + str(count) + ".tfrecord")
+        #     if count_file % 1000 == 0:
+        #         filename = os.path.join(self.tfrecords_dir, flag + "_" + str(count_file) + ".tfrecord")
         #         tfrecords_list.append(filename)
         #         writer = tf.python_io.TFRecordWriter(filename)
         #     examples = self.get_examples(i)
         #     for example in examples:
         #         writer.write(example)
-        #     count += 1
-        #     if count % 1000 == 0:
+        #         count_sample += 1
+        #     count_file += 1
+        #     if count_file % 1000 == 0:
         #         writer.close()
         #     pbar.update()
         # writer.close()
         # pbar.close()
-        # return tfrecords_list,count
+        # return tfrecords_list,count_sample
         #多线程
         executor = ThreadPoolExecutor(max_workers=self.processes)
         examples_feature = {executor.submit(self.get_examples, i): i for i in files}
