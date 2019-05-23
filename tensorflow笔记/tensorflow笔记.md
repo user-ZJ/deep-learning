@@ -491,7 +491,9 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	filepath="model.pb"      
 	inp=["Placeholder"]      
 	opt=["MobilenetV1/logits/pool/AvgPool"]      
-	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt,input_shapes=None)  #input_shapes参数，当输入存在None维度时，可以将None修改为指定数值，eg：{"foo" : [1, 16, 16, 3]}       
+	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt,input_shapes=None)  #input_shapes参数，当输入存在None维度时，可以将None修改为指定数值，eg：{"foo" : [1, 16, 16, 3]}     
+	# 将模型量化为int8
+	converter.optimizations = [tf.lite.Optimize.OPTIMIZE_FOR_SIZE]       
 	tflite_model=converter.convert()      
 	f = open("model.tflite", "wb")      
 	f.write(tflite_model)        
@@ -503,6 +505,16 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
 	androidnn api:      
 	https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/nnapi/NeuralNetworksTypes.h       
     
+| TensorFlow Version | Python API |
+| ------------------ | ---------- |
+| 1.7-1.8 | tf.contrib.lite.toco_convert |
+| 1.9-1.11 | tf.contrib.lite.TocoConverter |
+| 1.12 | tf.contrib.lite.TFLiteConverter |
+| 1.13 | tf.lite.TFLiteConverter |
+
+参考：https://www.tensorflow.org/lite/convert/python_api
+
+
     
 ##### tflite测试    
 	import numpy as np      
