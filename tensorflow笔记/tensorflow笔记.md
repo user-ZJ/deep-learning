@@ -484,26 +484,63 @@ variable_names_blacklist：（可先）默认空。变量黑名单，用于指�
  	      for op in graph.get_operations():      
             print(op.name, op.values())      
     
-##### pb转tflite    
+##### 生成tflite    
+
+###### tf 1.13之前版本 
 	# module 'tensorflow.contrib' has no attribute 'lite'问题，可尝试安装tensorflow1.8以上版本，并且安装pip install --force-reinstall tensorflow-gpu==1.9.0rc1/pip install --force-reinstall tf_nightly_gpu      
 	# tflite仅支持ADD, AVERAGE_POOL_2D, CONV_2D, DEPTHWISE_CONV_2D, DIV, FLOOR, MUL, RESHAPE, SOFTMAX运算，如果包含其他运算，模型会转换失败        
 	import tensorflow as tf      
 	filepath="model.pb"      
 	inp=["Placeholder"]      
 	opt=["MobilenetV1/logits/pool/AvgPool"]      
-	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt,input_shapes=None)  #input_shapes参数，当输入存在None维度时，可以将None修改为指定数值，eg：{"foo" : [1, 16, 16, 3]}     
-	# 将模型量化为int8
-	converter.optimizations = [tf.lite.Optimize.OPTIMIZE_FOR_SIZE]       
+	converter = tf.contrib.lite.TocoConverter.from_frozen_graph(filepath, inp, opt,input_shapes=None)  #input_shapes参数，当输入存在None维度时，可以将None修改为指定数值，eg：{"foo" : [1, 16, 16, 3]}            
 	tflite_model=converter.convert()      
 	f = open("model.tflite", "wb")      
 	f.write(tflite_model)        
     
 	或者使用toco工具进行转换      
-	bazel run --config=opt tensorflow/contrib/lite/toco:toco -- --input_file=/tmp/output_graph.pb --input_format=TENSORFLOW_GRAPHDEF --output_file=/tmp/scene_mobilenet_v1_224.tflite --output_format=TFLITE --inference_type=FLOAT --input_arrays=input --output_arrays=final_result --input_shapes=1,224,224,3        
+	bazel run --config=opt tensorflow/contrib/lite/toco:toco --input_file=$OUTPUT_DIR/tflite_graph.pb --output_file=$OUTPUT_DIR/detect.tflite --input_shapes=1,300,300,3 --input_arrays=normalized_input_image_tensor --output_arrays='raw_outputs/class_predictions','raw_outputs/box_encodings' --inference_type=FLOAT --allow_custom_ops --default_ranges_min=0 --default_ranges_max=6
+	量化
+	bazel run -c opt tensorflow/contrib/lite/toco:toco -- --input_file=/root/freeze_graph.pb  --output_file=/root/model_quant.tflite --input_shapes=1,60,60,1 --input_arrays=inputs --output_arrays=rescnn/ln --inference_type=QUANTIZED_UINT8  --mean_values=128 --std_values=128 --change_concat_input_ranges=false --allow_custom_ops        
 	tflite api:      
 	https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/kernels/register.cc       
 	androidnn api:      
-	https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/nnapi/NeuralNetworksTypes.h       
+	https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/nnapi/NeuralNetworksTypes.h     
+
+###### tf 1.13及之后版本 
+
+	graph_def_file = args.graph_def_file#'freeze_pruning_graph.pb'
+    input_arrays = args.input_arrays.replace(' ', '').split(',')#["inputs"]
+    output_arrays = args.output_arrays.replace(' ', '').split(',')#["rescnn/ln"]
+	input_shapes = [1,64,64,3]
+    converter = tf.lite.TFLiteConverter.from_frozen_graph(graph_def_file, input_arrays, output_arrays,input_shapes)
+    if quant:
+		#方法1，对模型压缩，计算还是使用float32,压缩后模型精度变化不大
+        #converter.optimizations = [tf.lite.Optimize.OPTIMIZE_FOR_SIZE]
+		#方法2，参数转换为int8
+        converter.inference_type = tf.lite.constants.QUANTIZED_UINT8
+        converter.quantized_input_stats = {input_arrays[0]: (0., 1.)} #均值和方法
+        converter.default_ranges_stats = (0, 6) #default_ranges_min和default_ranges_max
+        tflite_model = converter.convert()
+        f = open(args.tflite_filename, "wb")
+    else:
+        tflite_model = converter.convert()
+        f = open(args.tflite_filename, "wb")
+    f.write(tflite_model)
+    f.close()
+
+	命令行方式转换：
+	ckpt转tflite
+	bazel run //tensorflow/lite/python:tflite_convert -- --output_file=foo.tflite  --saved_model_dir=/tmp/saved_model
+	pb转tflite
+	bazel run //tensorflow/lite/python:tflite_convert -- --output_file=foo.tflite --graph_def_file=frozen_graph.pb --input_arrays=input --output_arrays=MobilenetV1/Predictions/Reshape_1
+	keras转tflite
+	bazel run //tensorflow/lite/python:tflite_convert -- --output_file=foo.tflite --keras_model_file=/keras_model.h5
+	量化
+	bazel run //tensorflow/lite/python:tflite_convert -- --output_file=foo.tflite --graph_def_file=some_quantized_graph.pb --inference_type=QUANTIZED_UINT8 --input_shapes=1,28,28,96 --input_arrays=input --output_arrays=outputs --mean_values=128 --std_dev_values=127 --default_ranges_min=0 --default_ranges_max=6   
+	
+
+  
     
 | TensorFlow Version | Python API |
 | ------------------ | ---------- |
