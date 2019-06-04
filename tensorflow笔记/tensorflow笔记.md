@@ -73,7 +73,9 @@ https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/math_
 队列和同步操作	Enqueue、Dequeue、MutexAcquire、MutexRelease      
 控制张量流动的操作	Merge、Switch、Enter、Leave、NextIteration      
 误差函数  softmax_cross_entropy_with_logits、sparse_softmax_cross_entropy_with_logits、sigmoid_cross_entropy_with_logits、weighted_cross_entropy_with_logits      
-option操作  tf.Operation.name、tf.Operation.type      
+option操作  tf.Operation.name、tf.Operation.type    
+
+tf.identity   将一个tensor赋值给另一个tensor，并增加一个op，eg:y=tf.identity(x) 
     
 > tf.stack,tf.concat:将两个张量合并，tf.unstack:是将一个高阶数的张量在某个axis上分解为低阶数的张量      
 > tf.expand_dims:增加一个维度；tf.squeeze:从tensor中删除所有大小是1的维度；tf.squeeze(cropped,squeeze_dims=0):删除指定尺寸为1的维度      
