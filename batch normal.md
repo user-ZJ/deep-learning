@@ -13,6 +13,8 @@ Normalization 具体例子
 
 # batch normal
 
+参考：https://zhuanlan.zhihu.com/p/34879333
+
 网络训练过程中参数不断改变导致后续每一层输入的分布也发生变化，而学习的过程又要使每一层适应输入的分布，因此我们不得不降低学习率、小心地初始化。  
 
 数据归一化方法让数据具有0均值和单位方差，如果简单的这么干，会降低层的表达能力。比如，在使用sigmoid激活函数的时候，如果把数据限制到0均值单位方差，那么相当于只使用了激活函数中近似线性的部分，这显然会降低模型表达能力。  
@@ -39,6 +41,10 @@ BN统一了各层的方差，以适用一个统一的学习率，作用在激活
 2. 对于有些像素级图片生成任务来说，BN 效果不佳；  
 3. RNN 等动态网络使用 BN 效果不佳且使用起来不方便  
 4. 训练时和推理时统计量不一致
+
+tensorflow实现：   
+https://github.com/udacity/cn-deep-learning/blob/master/tutorials/batch-norm/Batch_Normalization_Solutions.ipynb   
+https://github.com/MorvanZhou/tutorials/blob/master/tensorflowTUT/tf23_BN/tf23_BN.py   
 
 # Layer Normalization
 直接用同层隐层神经元的响应值作为集合 S 的范围来求均值和方差  
