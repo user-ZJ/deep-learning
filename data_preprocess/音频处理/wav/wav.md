@@ -99,4 +99,5 @@ https://stackoverflow.com/questions/2060628/reading-wav-files-in-python
 参考：
 https://www.cnblogs.com/lidabo/p/3729615.html
 https://www.cnblogs.com/ricks/p/9522243.html
-https://blog.csdn.net/trbbadboy/article/details/7899651
+https://blog.csdn.net/trbbadboy/article/details/7899651  
+https://www.jianshu.com/p/f67f2a9a28b2  
