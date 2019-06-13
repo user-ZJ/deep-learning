@@ -69,5 +69,8 @@ webrtc的vad检测代码比较简洁，核心代码只在三个文件中：
 
 	代码实现：py-webrtc-vad.py
   
+### C webrtc代码抽离
+https://github.com/dpirch/libfvad  
+https://github.com/jitsi/jitsi-webrtc-vad-wrapper  
 
 
