@@ -70,6 +70,14 @@ public class WebRTCVad {
         return voice_data;
     }
 
+    /**
+     * 提取有语音的帧，并合并为short类型数组
+     * @param frames 帧列表
+     * @param sampleRate 采样率
+     * @param frameDuration 帧长
+     * @param numPadding 连续numPadding帧有音频则判断为有音频，使提取的音频更加平滑
+     * @return
+     */
     private short[] vad_collector(ArrayList<Frame> frames, int sampleRate, int frameDuration, int numPadding) {
         int n = sampleRate * frameDuration/1000; //每帧数据
         int num_padding_frames = numPadding;
@@ -145,6 +153,13 @@ public class WebRTCVad {
         return count;
     }
 
+    /**
+     * 将语音切分为帧数据
+     * @param audioData
+     * @param frameDuration 帧长
+     * @param sampleRate 采样率
+     * @return
+     */
     private ArrayList<Frame> frame_generator(short[] audioData, int frameDuration, int sampleRate) {
         ArrayList<Frame> frames = new ArrayList<Frame>();
         int n = sampleRate * frameDuration/1000; //每帧数据
