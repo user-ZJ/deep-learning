@@ -165,6 +165,31 @@ Cooley-Tukey算法实例图解:
 STFT的步骤：1. 对信号进行分帧，即使用窗函数函数来截取信号，一般来说，每帧信号都是有重叠的； 2. 对每帧信号做DFT变换，由于DFT具有对称性，每帧都只去DFT的一半点数作为每帧的STFT结果
 
 
+# 混合基快速傅里叶变换java实现
+src\main\java\ca\uol\aig\fftpack   
+参考：https://github.com/fjfdeztoro/fftpack  
+
+
+## rfft和fft区别
+rfft：实数傅里叶变换，输入数据为N，输出数据大小为N//2 + 1
+fft：虚数傅里叶变换，输入数据为N，输出数据大小为N
+	
+	import numpy as np
+	data = [0, 1, 3, 4, 5]
+	print("FFT output\n", np.fft.fft(data))
+	print("RFFT output\n", np.fft.rfft(data))  
+
+	FFT output
+	[13.+0.j -3.80901699+4.39201132j -2.69098301+1.40008449j -2.69098301-1.40008449j -3.80901699-4.39201132j]
+	RFFT output
+	[13.+0.j -3.80901699+4.39201132j -2.69098301+1.40008449j]  
+	
+	注意到fft输出的最后一个元素是第二个元素的复共轭。 即负频率项仅是相应正频率项的复共轭，因此负频率项是冗余的。rfft不计算负频率项，因此输出的长度为n//2+1  
+
+对于jfftpack包，RealDoubleFFT.ft返回的长度为N，其中包含实数和虚数部分的值。
+	
+
+
 
 参考：  
 [wiki:快速傅里叶变换](https://zh.wikipedia.org/wiki/%E5%BF%AB%E9%80%9F%E5%82%85%E9%87%8C%E5%8F%B6%E5%8F%98%E6%8D%A2)  
