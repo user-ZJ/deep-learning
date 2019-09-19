@@ -1028,6 +1028,11 @@ variables.py：变量使用说明文件
 解决方法：不建议单独运行sess.run(summary_op)，建议在训练或评估的同时运行sess.run(summary_op)；如：  
 train_summary_str,_, train_loss = sess.run([summary_op,train_opt, loss],feed_dict={inputs:train_data,labels:train_labels})
 
+**5.KeyError: "The name 'inputs:0' refers to a Tensor which does not exist. The operation, 'inputs', does not exist in the graph."**  
+>bazel build tensorflow/tools/graph_transforms:summarize_graph
+bazel-bin/tensorflow/tools/graph_transforms/summarize_graph --in_graph=tensorflow_model.pb
+查看input实际名称为InceptionV1/Logits/Predictions/Reshape_1
+
   
     
     

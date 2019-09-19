@@ -44,7 +44,11 @@ BN统一了各层的方差，以适用一个统一的学习率，作用在激活
 
 tensorflow实现：   
 https://github.com/udacity/cn-deep-learning/blob/master/tutorials/batch-norm/Batch_Normalization_Solutions.ipynb   
-https://github.com/MorvanZhou/tutorials/blob/master/tensorflowTUT/tf23_BN/tf23_BN.py   
+https://github.com/MorvanZhou/tutorials/blob/master/tensorflowTUT/tf23_BN/tf23_BN.py    
+https://github.com/ry/tensorflow-resnet/blob/master/resnet.py  
+
+batch norm不同实现方式：  
+https://stackoverflow.com/questions/40879967/how-to-use-batch-normalization-correctly-in-tensorflow  
 
 # Layer Normalization
 直接用同层隐层神经元的响应值作为集合 S 的范围来求均值和方差  

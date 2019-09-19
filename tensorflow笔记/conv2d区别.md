@@ -74,3 +74,6 @@
 
 # tf.keras.conv2d
 	如果说tf.layers是轮子，那么keras可以说是汽车。tf.keras是基于tf.layers和tf.nn的高度封装。
+
+# tf.nn.depthwise_conv2d和tf.nn.depthwise_conv2d区别
+https://www.cnblogs.com/ranjiewen/p/9278631.html  
