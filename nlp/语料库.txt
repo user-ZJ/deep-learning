@@ -1,0 +1,10 @@
+搜狗新闻语料				搜狗分类新闻.20061127.zip
+百度百科数据				baike data.zip
+SougouR语料					SogouR.zip
+freebase_mid2name			freebase_mid2name.rar
+freebase-FB5M				freebase-FB5M.rar 
+69万大词库					69万大词库.rar
+汉语词库					汉语词库.zip
+哈工大LTP models 			ltp-models			自然语言处理工具箱
+百度的中文问答数据集WebQA	WebQA.v1.0.7z
+中文wiki百科				https://dumps.wikimedia.org/zhwiki/latest/zhwiki-latest-pages-articles.xml.bz2

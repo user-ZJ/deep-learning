@@ -35,7 +35,7 @@ FaceNet 中是随机选取semi-hard triplets 进行训练的, （也可以选择
 
 实际使用中采用此方法，又分为两种策略（来自于行人重识别的论文[In Defense of the Triplet Loss for Person Re-Identification](https://arxiv.org/abs/1703.07737)）:
 * Batch All: 计算batch_size中所有有效的三元组（triplet）的hard triplet 和 semi-hard triplet， 然后取平均得到Loss，不考虑easy triplets，因为easy triplets的损失为0，平均会把整体损失缩小    
-* Batch Hard：对于每一个anchor， 选择距离最大的d(a, p) 和 距离最大的 d(a, n)    
+* Batch Hard：对于每一个anchor， 选择距离最大的d(a, p) 和 距离最小的 d(a, n)    
 
 ##  Tensorflow 中的实现
 https://github.com/omoindrot/tensorflow-triplet-loss
