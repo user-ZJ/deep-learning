@@ -178,6 +178,12 @@ arg_scope的作用范围内，是定义了指定层的默认参数，若想特�
 
 
 # 参考
-https://github.com/tensorflow/tensorflow/blob/master/tensorflow/contrib/slim/README.md
+https://github.com/tensorflow/tensorflow/blob/master/tensorflow/contrib/slim/README.md   
+ 
+# FAQ
+1. 使用TensorFlow slim构建网络结构，使用到了batch_norm，在训练时设置is_training=True，训练精度很高,测试时设置is_training=False,测试准确率只用50%，基本等于瞎猜。  
+> 该问题原因是应为训练时使用了op=tf.train.GradientDecentOptimizer(lr).minimize(loss)来优化，导致batch_norm均值和方差没有保存，正确方式应该为：
+optmimizer = tf.train.GradientDecentOptimizer(lr)  
+op = slim.learning.create_train_op(optmimizer)  
 
 
