@@ -349,3 +349,6 @@ for epoch in range(epochs):
     print(epoch, valid_loss / len(valid_dl))
 ```
 
+# Reference
+
+https://pytorch.org/docs/stable/index.html
