@@ -59,20 +59,24 @@ class TDNN(nn.Module):
 
 feature_len = 20
 batch_size = 10
-input = torch.randn(batch_size, feature_len, 50).to('cuda')
+input = torch.randn(batch_size, feature_len, 2500).to('cuda')
 net = TDNN(feature_len).to('cuda')
+net.eval()
 torch.save(net.state_dict(), "xvector.pt")
 net.load_state_dict(torch.load('xvector.pt'))
 output = net(input)
 
 #script model save 1
 sm = torch.jit.script(net)
+sm.eval()
 sm.save("xvector_s1.pt")
+
 #script model save 2
 traced_script_module = torch.jit.trace(net, input)
+traced_script_module.eval()
 traced_script_module.save("xvector_s2.pt")
 
 from torchsummary import summary
-summary(net,(feature_len,50))
+summary(net,(feature_len,2500))
 
 
