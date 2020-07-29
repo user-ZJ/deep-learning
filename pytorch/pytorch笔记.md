@@ -200,19 +200,34 @@ opt = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 重复这一流程，直到平均损失足够降低。  
 
 # 模型保存和加载
-	#保存模型
-	model_dir = 'saved_models/'
-	model_name = 'keypoints_model_1.pt'
-	
-	# after training, save your model parameters in the dir 'saved_models'
-	torch.save(net.state_dict(), model_dir+model_name)
-	
-	#加载模型
-	# instantiate your Net
-	net = Net()
-	# load the net parameters by name
-	net.load_state_dict(torch.load('saved_models/fashion_net_ex.pt'))
-	print(net)
+```python
+#保存模型
+model_dir = 'saved_models/'
+model_name = 'keypoints_model_1.pt'
+
+# after training, save your model parameters in the dir 'saved_models'
+# 只保存模型参数
+torch.save(net.state_dict(), model_dir+model_name) 
+
+#加载模型
+# instantiate your Net
+net = Net()
+# load the net parameters by name
+net.load_state_dict(torch.load('saved_models/fashion_net_ex.pt'))
+print(net)
+# 保存整个模型
+torch.save(model, path)
+model = torch.load(path)
+
+# 加载部分预训练参数
+pretrained_dict=torch.load(model_weight)
+model_dict=myNet.state_dict()
+# 1. filter out unnecessary keys
+pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+# 2. overwrite entries in the existing state dict
+model_dict.update(pretrained_dict)
+myNet.load_state_dict(model_dict)
+```
 
 # 设备选择  
 ```python
