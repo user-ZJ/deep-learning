@@ -1,7 +1,3 @@
-from concurrent.futures._base import as_completed
-from concurrent.futures.thread import ThreadPoolExecutor
-from time import time
-
 import torch
 import torchvision
 from torch.nn import Parameter
@@ -11,13 +7,16 @@ import numpy as np
 
 
 class TDNN(nn.Module):
-    def __init__(self,feature_len):
+    def __init__(self,feature_len,device=torch.device('cuda')):
         super(TDNN, self).__init__()
-        self.device = torch.device('cuda')
+        self.device = torch.device(device)
+        self.unfold1 = nn.Unfold((5,20))  #使用unfold取连续5帧特征
         self.h1 = nn.Conv1d(100,512,1)
         self.bn1 = nn.BatchNorm1d(512,affine=False)
+        self.unfold2 = nn.Unfold((3, 512),dilation=(2,1))  # 使用unfold 隔1帧抽，抽3帧特征
         self.h2 = nn.Conv1d(1536,512,1)
         self.bn2 = nn.BatchNorm1d(512)
+        self.unfold3 = nn.Unfold((3, 512), dilation=(3, 1))  # 使用unfold 隔2帧抽，抽3帧特征
         self.h3 = nn.Conv1d(1536, 512, 1)
         self.bn3 = nn.BatchNorm1d(512)
         self.h4 = nn.Conv1d(512, 512, 1)
@@ -33,18 +32,18 @@ class TDNN(nn.Module):
     def forward(self,input):
         '''
         :param input: [batch, n_frame, n_feature]
-        :return:[batch, new_seq_len, output_features]
+        :return:[batch, output_features]
         '''
         #[batch_size, seq_len, max_word_len] = input.size()
-        input = input.transpose(2,1)
-        output = self.batch_select_index(input,torch.tensor(2),torch.tensor([-2,-1,0,1,2]).to(self.device))
+        input = input.unsqueeze(1)
+        output = self.unfold1(input)
         output = self.h1(output)
         output = F.relu(output)
         output = self.bn1(output)
-        output = self.batch_select_index(output,torch.tensor(2),torch.tensor([-2,0,2]).to(self.device))
+        output = self.unfold2(output.transpose(2,1).unsqueeze(1))
         output = F.relu(self.h2(output))
         output = self.bn2(output)
-        output = self.batch_select_index(output,torch.tensor(2), torch.tensor([-3, 0, 3]).to(self.device))
+        output = self.unfold3(output.transpose(2,1).unsqueeze(1))
         output = F.relu(self.h3(output))
         output = self.bn3(output)
         output = F.relu6(self.h4(output))
@@ -60,19 +59,6 @@ class TDNN(nn.Module):
         output = self.bn7(output)
         return output
 
-    def batch_select_index(self,x,dim,context):
-        time_square= x.shape[2]
-        feature_len = x.shape[1]
-        context = context+torch.abs(context[0])
-        width = context[-1]-context[0]
-        reshape_len = len(context)*feature_len
-        batch_concated = []
-        for i in torch.arange(0,time_square-width,dtype=torch.int32):
-            y = torch.index_select(x,dim,context+i)
-            y = y.reshape(-1,reshape_len)
-            batch_concated.append(y)
-        batch_concated = torch.stack(batch_concated,dim=dim).to(self.device)
-        return batch_concated
 
 
 
@@ -92,7 +78,7 @@ sm = torch.jit.script(net)
 sm.eval()
 sm.save("xvector_s1.pt")
 output = sm.forward(input)
-print(output.shape)
+
 
 #script model save 2
 # traced_script_module = torch.jit.trace(net, input)
