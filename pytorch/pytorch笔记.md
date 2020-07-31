@@ -43,9 +43,13 @@ y.add_(x)   #自加，x+y赋值给y
 print(x[:, 1])
 ```
 
+# index_select
+
+在某个维度中选择指定列的数据
+
 # 维度扩展和删除
 
-pytorch 使用squeeze删除维度,只能删除维度为1的维度，unsqueeze扩展维度
+pytorch 使用squeeze删除维度,只能删除维度为1的维度，unsqueeze扩展维度，expand和repeat也用户扩张
 
 ```python
 x = torch.zeros(2, 1, 2, 1, 2)
@@ -65,10 +69,11 @@ x = torch.tensor([1, 2, 3, 4])
 >>> torch.unsqueeze(x, 0)
 tensor([[ 1,  2,  3,  4]])
 >>> torch.unsqueeze(x, 1)
-tensor([[ 1],
-        [ 2],
-        [ 3],
-        [ 4]])
+x = torch.Tensor([[1], [2], [3]])
+x.size()
+x.expand(3, 4)
+x.repeat(4, 2)
+x.repeat(4, 2).size()
 ```
 
 
@@ -120,10 +125,6 @@ for xb,yb in train_dl:
 # 手动实现滑窗操作
 
 pytorch手动实现滑动窗口操作，使用fold和unfold函数
-
-# index_select
-
-在某个维度中选择指定列的数据
 
 # 数据预处理
 
