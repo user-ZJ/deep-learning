@@ -1,8 +1,5 @@
-from concurrent.futures._base import as_completed
-from concurrent.futures.thread import ThreadPoolExecutor
-from time import time
-
 import torch
+import torchvision
 from torch.nn import Parameter
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,7 +10,8 @@ class TDNN(nn.Module):
     def __init__(self,feature_len):
         super(TDNN, self).__init__()
         self.h1 = nn.Conv1d(feature_len,512,5)
-        self.bn1 = nn.BatchNorm1d(512)
+        self.relu1 = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(512,affine=False)
         self.h2 = nn.Conv1d(512,512,3,dilation=2)
         self.bn2 = nn.BatchNorm1d(512)
         self.h3 = nn.Conv1d(512, 512, 3, dilation=3)
@@ -22,9 +20,9 @@ class TDNN(nn.Module):
         self.bn4 = nn.BatchNorm1d(512)
         self.h5 = nn.Conv1d(512, 1500, 1)
         self.bn5 = nn.BatchNorm1d(1500)
-        self.line1 = nn.Linear(3000,512)
+        self.h6 = nn.Linear(3000,512)
         self.bn6 = nn.BatchNorm1d(512)
-        self.line2 = nn.Linear(512,512)
+        self.h7 = nn.Linear(512,512)
         self.bn7 = nn.BatchNorm1d(512)
 
 
@@ -49,9 +47,9 @@ class TDNN(nn.Module):
         mean = output.mean(dim=-1)
         std = output.std(dim=-1)
         output = torch.cat((mean, std), dim=1)
-        output = F.relu6(self.line1(output))
+        output = F.relu6(self.h6(output))
         output = self.bn6(output)
-        output = F.relu6(self.line2(output))
+        output = F.relu6(self.h7(output))
         output = self.bn7(output)
         return output
 
@@ -59,11 +57,12 @@ class TDNN(nn.Module):
 
 feature_len = 20
 batch_size = 10
-input = torch.randn(batch_size, feature_len, 2500).to('cuda')
+time_square = 513
+input = torch.randn(batch_size, feature_len, time_square).to('cuda')
 net = TDNN(feature_len).to('cuda')
 net.eval()
 torch.save(net.state_dict(), "xvector.pt")
-net.load_state_dict(torch.load('xvector.pt'))
+net.load_state_dict(torch.load('xvector.pt',map_location="cuda:0"))
 output = net(input)
 
 #script model save 1
@@ -77,6 +76,8 @@ traced_script_module.eval()
 traced_script_module.save("xvector_s2.pt")
 
 from torchsummary import summary
-summary(net,(feature_len,2500))
+summary(net,(feature_len,time_square))
+print(net.state_dict().keys())
+print(net.state_dict()["h1.weight"].shape)
 
 
