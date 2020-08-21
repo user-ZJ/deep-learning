@@ -35,6 +35,31 @@ torch.add(x, y, out=result)  # 指定output
 y.add_(x)   #自加，x+y赋值给y
 ```
 
+# 矩阵操作
+
+```python
+# 拼接
+# torch.cat(inputs, dimension=0)  在给定维度上对输入的张量序列 seq 进行连接操作
+x = torch.randn(2, 3)
+torch.cat((x, x, x), 1)
+# torch.stack(sequence, dim=0) 沿着一个新维度对输入张量序列进行连接。 序列中所有的张量都应该为相同形状
+x1 = torch.randn(2, 3)
+x2 = torch.randn(2, 3)
+torch.stack((x1, x2), 1).size()
+
+# 拆分
+# torch.split(tensor, split_size, dim=0) 将输入张量分割成相等形状的 chunks（如果可分）。 如果沿指定维的张量形状大小不能被 split_size 整分， 则最后一个分块会小于其它分块。
+x = torch.randn(3, 10, 6)
+d, e = x.split(2, 0) # 在 0 维进行间隔维 2 的拆分
+d.size(), e.size()
+# torch.chunk(tensor, chunks, dim=0) 在给定维度(轴)上将输入张量进行分块
+l, m, n = x.chunk(3, 0)	# 在 0 维上拆分成 3 份
+u, v = x.chunk(2, 0) # 在 0 维上拆分成 2 份
+u.size(), v.size()
+```
+
+
+
 # 索引
 
 索引方式和numpy一致
