@@ -1585,8 +1585,8 @@ if step % 100 == 0:
 
 
 
+# 参考
 
-
-
+https://github.com/dragen1860/Deep-Learning-with-TensorFlow-book
 
 
