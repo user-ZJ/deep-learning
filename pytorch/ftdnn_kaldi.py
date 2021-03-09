@@ -14,57 +14,57 @@ class FTDNN(nn.Module):
         self.tdnn0_unfold = nn.Unfold((5,feature_len))  #使用unfold取连续5帧特征
         self.tdnn0_affine = nn.Conv1d(feature_len*5,512,1)
         self.tdnn0_relu = nn.ReLU()
-        self.tdnn0_bn = nn.BatchNorm1d(512)
+        self.tdnn0_bn = nn.BatchNorm1d(512,affine=False)
         self.tdnn1_affine = nn.Conv1d(512,1024,1)
         self.tdnn1_relu = nn.ReLU()
         self.tdnn1_bn = nn.BatchNorm1d(1024)
         self.tdnn1_dropout = nn.Dropout()
         self.tdnn2_unfold1 = nn.Unfold((2, 1024),dilation=(2,1))    # 使用unfold 隔1帧抽，抽2帧特征
-        self.tdnn2_linear = nn.Conv1d(2048,256,1)
+        self.tdnn2_linear = nn.Conv1d(2048,256,1,bias=False)
         self.tdnn2_unfold2 = nn.Unfold((2, 256), dilation=(2, 1))   # 使用unfold 隔1帧抽，抽2帧特征
         self.tdnn2_affine = nn.Conv1d(512,1024,1)
         self.tdnn2_relu = nn.ReLU()
         self.tdnn2_bn = nn.BatchNorm1d(1024)
         self.tdnn2_dropout = nn.Dropout()
-        self.tdnn3_linear = nn.Conv1d(1024,256,1)
+        self.tdnn3_linear = nn.Conv1d(1024,256,1,bias=False)
         self.tdnn3_affine = nn.Conv1d(256,1024,1)
         self.tdnn3_relu = nn.ReLU()
         self.tdnn3_bn = nn.BatchNorm1d(1024)
         self.tdnn3_dropout = nn.Dropout()
         self.tdnn4_unfold1 = nn.Unfold((2, 1024), dilation=(3, 1)) # 使用unfold 隔2帧抽，抽2帧特征
-        self.tdnn4_linear = nn.Conv1d(2048,256,1)
+        self.tdnn4_linear = nn.Conv1d(2048,256,1,bias=False)
         self.tdnn4_unfold2 = nn.Unfold((2, 256), dilation=(3, 1))  # 使用unfold 隔2帧抽，抽2帧特征
         self.tdnn4_affine = nn.Conv1d(512,1024,1)
         self.tdnn4_relu = nn.ReLU()
         self.tdnn4_bn = nn.BatchNorm1d(1024)
         self.tdnn4_dropout = nn.Dropout()
-        self.tdnn5_linear = nn.Conv1d(1024,256,1)
+        self.tdnn5_linear = nn.Conv1d(1024,256,1,bias=False)
         self.tdnn5_affine = nn.Conv1d(512,1024,1)
         self.tdnn5_relu = nn.ReLU()
         self.tdnn5_bn = nn.BatchNorm1d(1024)
         self.tdnn5_dropout = nn.Dropout()
         self.tdnn6_unfold1 = nn.Unfold((2, 1024), dilation=(3, 1))  # 使用unfold 隔2帧抽，抽2帧特征
-        self.tdnn6_linear = nn.Conv1d(2048, 256, 1)
+        self.tdnn6_linear = nn.Conv1d(2048, 256, 1,bias=False)
         self.tdnn6_unfold2 = nn.Unfold((2, 256), dilation=(3, 1))   # 使用unfold 隔2帧抽，抽2帧特征
         self.tdnn6_affine  = nn.Conv1d(512,1024,1)
         self.tdnn6_relu = nn.ReLU()
         self.tdnn6_bn = nn.BatchNorm1d(1024)
         self.tdnn6_dropout = nn.Dropout()
         self.tdnn7_unfold1 = nn.Unfold((2, 1024), dilation=(3, 1))   # 使用unfold 隔2帧抽，抽2帧特征
-        self.tdnn7_linear = nn.Conv1d(2048,256,1)
+        self.tdnn7_linear = nn.Conv1d(2048,256,1,bias=False)
         self.tdnn7_unfold2 = nn.Unfold((2, 256), dilation=(3, 1))    # 使用unfold 隔12帧抽，抽2帧特征
         self.tdnn7_affine = nn.Conv1d(1024,1024,1)
         self.tdnn7_relu = nn.ReLU()
         self.tdnn7_bn = nn.BatchNorm1d(1024)
         self.tdnn7_dropout = nn.Dropout()
         self.tdnn8_unfold1 = nn.Unfold((2, 1024), dilation=(3, 1))    # 使用unfold 隔2帧抽，抽32帧特征
-        self.tdnn8_linear = nn.Conv1d(2048,256,1)
+        self.tdnn8_linear = nn.Conv1d(2048,256,1,bias=False)
         self.tdnn8_unfold2 = nn.Unfold((2, 256), dilation=(3, 1))    # 使用unfold 隔12帧抽，抽2帧特征
         self.tdnn8_affine = nn.Conv1d(512,1024,1)
         self.tdnn8_relu = nn.ReLU()
         self.tdnn8_bn = nn.BatchNorm1d(1024)
         self.tdnn8_dropout = nn.Dropout()
-        self.tdnn9_linear = nn.Conv1d(1024,256,1)
+        self.tdnn9_linear = nn.Conv1d(1024,256,1,bias=False)
         self.tdnn9_affine = nn.Conv1d(1024,1024,1)
         self.tdnn9_relu = nn.ReLU()
         self.tdnn9_bn = nn.BatchNorm1d(1024)
@@ -130,7 +130,6 @@ class FTDNN(nn.Module):
         output = self.tdnn6_dropout(output)
         output = self.tdnn7_unfold1(output.transpose(2,1).unsqueeze(1))
         tdnn7l = self.tdnn7_linear(output)
-        print(tdnn7l.size())
         output = self.tdnn7_unfold2(tdnn7l.transpose(2,1).unsqueeze(1))
         output = torch.cat([output,tdnn4l[:,:,:-15],tdnn2l[:,:,:-20]],dim=1)  #连接的时候需要对tdnn4l和tdnn2l进行截断
         output = self.tdnn7_affine(output)
@@ -155,14 +154,14 @@ class FTDNN(nn.Module):
         output = self.tdnn10_bn(output)
         mean = output.mean(dim=-1)
         std = output.std(dim=-1)
-        output = torch.cat((mean, std), dim=1)
+        output = torch.cat((mean, std), dim=1)     # stats_pooling
         output = self.tdnn11_affine(output)        # 特征输出层
         output = self.tdnn11_relu(output)
         output = self.tdnn11_bn(output)
         output = self.tdnn12_affine(output)
         output = self.tdnn12_relu(output)
         output = self.tdnn12_bn(output)
-        output = self.tdnn13_affine(output) #分类使用
+        output = self.tdnn13_affine(output)   # 分类使用
         output = F.softmax(output, dim=1)
         print(output.size())
         return output
@@ -178,8 +177,8 @@ input = torch.randn(batch_size, time_square,feature_len ).to('cuda')
 net = FTDNN(feature_len).to('cuda')
 net.eval()
 output = net(input)
-# for key,value in net.state_dict().items():
-#     print(key,value.size())
+for key,value in net.state_dict().items():
+    print(key,value.size())
 # torch.save(net.state_dict(), "ftdnn.pt")
 # net.load_state_dict(torch.load('ftdnn.pt',map_location="cuda:0"))
 # output = net(input)

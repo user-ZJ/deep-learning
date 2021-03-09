@@ -25,10 +25,10 @@ class TDNN(nn.Module):
         self.h5 = nn.Conv1d(512, 1500, 1)
         self.bn5 = nn.BatchNorm1d(1500)
         self.h6 = nn.Linear(3000,512)
-        self.bn6 = nn.BatchNorm1d(512)
-        self.h7 = nn.Linear(512,512)
-        self.bn7 = nn.BatchNorm1d(512)
-        self.h8 = nn.Linear(512,10000)
+        # self.bn6 = nn.BatchNorm1d(512)
+        # self.h7 = nn.Linear(512,512)
+        # self.bn7 = nn.BatchNorm1d(512)
+        # self.h8 = nn.Linear(512,10000)
 
 
     def forward(self,input):
@@ -38,7 +38,7 @@ class TDNN(nn.Module):
         '''
         #[batch_size, seq_len, max_word_len] = input.size()
         input = input.unsqueeze(1)
-        output = self.unfold1(input).double()
+        output = self.unfold1(input)
         output = self.h1(output)
         output = F.relu(output)
         output = self.bn1(output)
@@ -58,15 +58,15 @@ class TDNN(nn.Module):
         output = self.bn5(output)
         mean = output.mean(dim=-1)
         std = output.std(dim=-1)
-        output = torch.cat((mean, std), dim=1)
+        output = torch.cat((mean, std), dim=1)  #stats_pooling
         output = self.h6(output)    # 特征输出层
-        output = F.relu(output)
-        output = self.bn6(output)
-        output = self.h7(output)
-        output = F.relu(output)
-        output = self.bn7(output)
-        output = self.h8(output)   # 分类使用
-        output = F.softmax(output,dim=1)
+        # output = F.relu(output)
+        # output = self.bn6(output)
+        # output = self.h7(output)
+        # output = F.relu(output)
+        # output = self.bn7(output)
+        # output = self.h8(output)   # 分类使用
+        # output = F.softmax(output,dim=1)
         return output
 
 
@@ -76,8 +76,8 @@ class TDNN(nn.Module):
 feature_len = 20
 batch_size = 10
 time_square = 513
-input = torch.randn(batch_size, time_square,feature_len ).type(torch.float64).to('cuda')
-net = TDNN(feature_len).type(torch.float64).to('cuda')
+input = torch.randn(batch_size, time_square,feature_len).to('cuda')
+net = TDNN(feature_len).to('cuda')
 net.eval()
 torch.save(net.state_dict(), "xvector.pt")
 net.load_state_dict(torch.load('xvector.pt',map_location="cuda:0"))

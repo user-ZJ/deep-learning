@@ -24,6 +24,7 @@ class TDNN(nn.Module):
         self.bn6 = nn.BatchNorm1d(512)
         self.h7 = nn.Linear(512,512)
         self.bn7 = nn.BatchNorm1d(512)
+        self.h8 = nn.Linear(512, 10000)
 
 
     def forward(self,input):
@@ -46,11 +47,14 @@ class TDNN(nn.Module):
         output = self.bn5(output)
         mean = output.mean(dim=-1)
         std = output.std(dim=-1)
-        output = torch.cat((mean, std), dim=1)
-        output = F.relu6(self.h6(output))
+        output = torch.cat((mean, std), dim=1)  #stats_pooling
+        output = self.h6(output)    #xvector特征输出
+        output = F.relu6(output)
         output = self.bn6(output)
         output = F.relu6(self.h7(output))
         output = self.bn7(output)
+        output = self.h8(output)  # 分类使用
+        output = F.softmax(output,dim=1)
         return output
 
 
