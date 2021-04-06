@@ -33,7 +33,7 @@ class TDNN(nn.Module):
         :return:[batch, new_seq_len, output_features]
         '''
         #[batch_size, seq_len, max_word_len] = input.size()
-
+        input = input.transpose(2,1)
         output = self.h1(input)
         output = F.relu6(output)
         output = self.bn1(output)
@@ -60,14 +60,15 @@ class TDNN(nn.Module):
 
 
 feature_len = 20
-batch_size = 10
+batch_size = 1
 time_square = 513
-input = torch.randn(batch_size, feature_len, time_square).to('cuda')
+input = torch.randn(batch_size, time_square,feature_len).to('cuda')
 net = TDNN(feature_len).to('cuda')
 net.eval()
 torch.save(net.state_dict(), "xvector.pt")
 net.load_state_dict(torch.load('xvector.pt',map_location="cuda:0"))
 output = net(input)
+print(input.size(),output.size())
 
 #script model save 1
 sm = torch.jit.script(net)
@@ -79,9 +80,16 @@ traced_script_module = torch.jit.trace(net, input)
 traced_script_module.eval()
 traced_script_module.save("xvector_s2.pt")
 
-from torchsummary import summary
-summary(net,(feature_len,time_square))
-print(net.state_dict().keys())
-print(net.state_dict()["h1.weight"].shape)
+torch.onnx.export(net,               # model being run
+                  input,                         # model input (or a tuple for multiple inputs)
+                  "xvector.onnx",   # where to save the model (can be a file or file-like object)
+                  export_params=True,        # store the trained parameter weights inside the model file
+                  opset_version=12,          # the ONNX version to export the model to
+                  do_constant_folding=True,  # whether to execute constant folding for optimization
+                  input_names = ['input'],   # the model's input names
+                  output_names = ['output'], # the model's output names
+                  dynamic_axes={'input' : {0 : 'batch_size',1:'time_square'},    # variable lenght axes
+                                'output' : {0 : 'batch_size'}})
+
 
 
