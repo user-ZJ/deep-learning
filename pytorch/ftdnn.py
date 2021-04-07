@@ -77,7 +77,7 @@ class FTDNN(nn.Module):
         '''
         #[batch_size, seq_len, max_word_len] = input.size()
         #input = input.unsqueeze(1)
-        print(input.size())
+        input = input.transpose(2, 1)
         output = self.tdnn0_affine(input)
         output = self.tdnn0_relu(output)
         output = self.tdnn0_bn(output)
@@ -143,7 +143,6 @@ class FTDNN(nn.Module):
         output = self.tdnn12_bn(output)
         output = self.tdnn13_affine(output) #分类使用
         output = F.softmax(output, dim=1)
-        print(output.size())
         return output
 
 
@@ -153,10 +152,11 @@ class FTDNN(nn.Module):
 feature_len = 23
 batch_size = 1
 time_square = 513
-input = torch.randn(batch_size, feature_len,time_square ).to('cuda')
+input = torch.randn(batch_size, time_square,feature_len ).to('cuda')
 net = FTDNN(feature_len).to('cuda')
 net.eval()
 output = net(input)
+print(output.shape)
 # for key,value in net.state_dict().items():
 #     print(key,value.size())
 # torch.save(net.state_dict(), "ftdnn.pt")
@@ -182,4 +182,14 @@ output = net(input)
 # print(net.state_dict().keys())
 # print(net.state_dict()["bn1.num_batches_tracked"].shape)
 
+torch.onnx.export(net,               # model being run
+                  input,                         # model input (or a tuple for multiple inputs)
+                  "tdnn-f.onnx",   # where to save the model (can be a file or file-like object)
+                  export_params=True,        # store the trained parameter weights inside the model file
+                  opset_version=12,          # the ONNX version to export the model to
+                  do_constant_folding=True,  # whether to execute constant folding for optimization
+                  input_names = ['input'],   # the model's input names
+                  output_names = ['output'], # the model's output names
+                  dynamic_axes={'input' : {0 : 'batch_size',1:'time_square'},    # variable lenght axes
+                                'output' : {0 : 'batch_size'}})
 
