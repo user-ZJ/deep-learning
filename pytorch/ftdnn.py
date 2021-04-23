@@ -101,7 +101,7 @@ class FTDNN(nn.Module):
         output = self.tdnn4_bn(output)
         output = self.tdnn4_dropout(output)
         tdnn5l = self.tdnn5_linear(output)
-        output = torch.cat([tdnn5l,tdnn3l[:,:,:-6]],dim=1)    #连接的时候需要对tdnn3l进行截断
+        output = torch.cat([tdnn5l,tdnn3l[:,:,3:-3]],dim=1)    #连接的时候需要对tdnn3l进行截断
         output = self.tdnn5_affine(output)
         output = self.tdnn5_relu(output)
         output = self.tdnn5_bn(output)
@@ -113,7 +113,7 @@ class FTDNN(nn.Module):
         output = self.tdnn6_dropout(output)
         tdnn7l = self.tdnn7_linear(output)
         output = self.tdnn7_unfold2(tdnn7l.transpose(2,1).unsqueeze(1))
-        output = torch.cat([output,tdnn4l[:,:,:-15],tdnn2l[:,:,:-20]],dim=1)  #连接的时候需要对tdnn4l和tdnn2l进行截断
+        output = torch.cat([output,tdnn4l[:,:,6:-9],tdnn2l[:,:,9:-11]],dim=1)  #连接的时候需要对tdnn4l和tdnn2l进行截断
         output = self.tdnn7_affine(output)
         output = self.tdnn7_relu(output)
         output = self.tdnn7_bn(output)
@@ -124,7 +124,7 @@ class FTDNN(nn.Module):
         output = self.tdnn8_bn(output)
         output = self.tdnn8_dropout(output)
         tdnn9l = self.tdnn9_linear(output)
-        output = torch.cat([tdnn9l,tdnn8l[:,:,:-3],tdnn6l[:,:,:-15],tdnn4l[:,:,:-21]],dim=1)
+        output = torch.cat([tdnn9l,tdnn8l[:,:,:-3],tdnn6l[:,:,6:-9],tdnn4l[:,:,9:-12]],dim=1)
         output = self.tdnn9_affine(output)
         output = self.tdnn9_relu(output)
         output = self.tdnn9_bn(output)
@@ -186,7 +186,7 @@ torch.onnx.export(net,               # model being run
                   input,                         # model input (or a tuple for multiple inputs)
                   "tdnn-f.onnx",   # where to save the model (can be a file or file-like object)
                   export_params=True,        # store the trained parameter weights inside the model file
-                  opset_version=12,          # the ONNX version to export the model to
+                  opset_version=11,          # the ONNX version to export the model to
                   do_constant_folding=True,  # whether to execute constant folding for optimization
                   input_names = ['input'],   # the model's input names
                   output_names = ['output'], # the model's output names

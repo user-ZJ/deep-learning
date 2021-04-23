@@ -116,7 +116,7 @@ class FTDNN(nn.Module):
         output = self.tdnn4_bn(output)
         output = self.tdnn4_dropout(output)
         tdnn5l = self.tdnn5_linear(output)
-        output = torch.cat([tdnn5l,tdnn3l[:,:,:-6]],dim=1)    #连接的时候需要对tdnn3l进行截断
+        output = torch.cat([tdnn5l,tdnn3l[:,:,3:-3]],dim=1)    #连接的时候需要对tdnn3l进行截断,取中间部分
         output = self.tdnn5_affine(output)
         output = self.tdnn5_relu(output)
         output = self.tdnn5_bn(output)
@@ -131,7 +131,8 @@ class FTDNN(nn.Module):
         output = self.tdnn7_unfold1(output.transpose(2,1).unsqueeze(1))
         tdnn7l = self.tdnn7_linear(output)
         output = self.tdnn7_unfold2(tdnn7l.transpose(2,1).unsqueeze(1))
-        output = torch.cat([output,tdnn4l[:,:,:-15],tdnn2l[:,:,:-20]],dim=1)  #连接的时候需要对tdnn4l和tdnn2l进行截断
+        print(output.size(),tdnn4l.size(),tdnn2l.size())
+        output = torch.cat([output,tdnn4l[:,:,6:-9],tdnn2l[:,:,9:-11]],dim=1)  #连接的时候需要对tdnn4l和tdnn2l进行截断
         output = self.tdnn7_affine(output)
         output = self.tdnn7_relu(output)
         output = self.tdnn7_bn(output)
@@ -144,7 +145,7 @@ class FTDNN(nn.Module):
         output = self.tdnn8_bn(output)
         output = self.tdnn8_dropout(output)
         tdnn9l = self.tdnn9_linear(output)
-        output = torch.cat([tdnn9l,tdnn8l[:,:,:-3],tdnn6l[:,:,:-15],tdnn4l[:,:,:-21]],dim=1)
+        output = torch.cat([tdnn9l,tdnn8l[:,:,:-3],tdnn6l[:,:,6:-9],tdnn4l[:,:,9:-12]],dim=1)
         output = self.tdnn9_affine(output)
         output = self.tdnn9_relu(output)
         output = self.tdnn9_bn(output)
@@ -172,13 +173,13 @@ class FTDNN(nn.Module):
 
 feature_len = 23
 batch_size = 1
-time_square = 513
+time_square = 2009
 input = torch.randn(batch_size, time_square,feature_len ).to('cuda')
 net = FTDNN(feature_len).to('cuda')
 net.eval()
 output = net(input)
-for key,value in net.state_dict().items():
-    print(key,value.size())
+# for key,value in net.state_dict().items():
+#     print(key,value.size())
 # torch.save(net.state_dict(), "ftdnn.pt")
 # net.load_state_dict(torch.load('ftdnn.pt',map_location="cuda:0"))
 # output = net(input)
