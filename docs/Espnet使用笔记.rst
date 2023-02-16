@@ -178,3 +178,18 @@ aishell数据准备脚本为：/espnet/egs2/aishell/asr1/local/data.sh
     --audio_format kaldi_ark   
     --feats_type extracted 
 
+提取的cmvn存储
+------------------
+espnet提取的cmvn保存为feats_stats.npz和feats_lengths_stats.npz
+
+feats_stats.npz包含：
+
+* count:长整形，表示所有特征维度累加
+* sum: 在特征维度上的累加和，如80维fbank，则该项为80维
+* sum_square: 特征维度上的方差和，如80维fbank，则该项为80维
+
+feats_lengths_stats.npz包含：
+
+* count:长整形，表示语音个数
+* sum: 长整形，表示所有特征维度累加
+* sum_square: 长整形，表示各语音长度的方差和
